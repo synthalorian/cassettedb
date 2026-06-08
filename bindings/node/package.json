@@ -1,0 +1,34 @@
+{
+  "name": "cassettedb",
+  "version": "0.9.0",
+  "description": "Node.js bindings for CassetteDB, a single-file JSON document database",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "license": "MIT",
+  "author": "synthalorian <synth@example.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/synthalorian/cassettedb.git"
+  },
+  "keywords": [
+    "database",
+    "json",
+    "document-store",
+    "embedded",
+    "ffi",
+    "napi-rs"
+  ],
+  "scripts": {
+    "build": "cargo-cp-artifact -nc index.node -- cargo build --release --manifest-path ./Cargo.toml",
+    "build:debug": "cargo-cp-artifact -nc index.node -- cargo build --manifest-path ./Cargo.toml",
+    "test": "node test.js"
+  },
+  "devDependencies": {
+    "cargo-cp-artifact": "^0.1.9"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "index.node"
+  ]
+}
