@@ -17,6 +17,10 @@ pub mod document;
 pub mod replication;
 pub mod backup;
 pub mod server;
+pub mod raft;
+pub mod cluster;
+pub mod shard;
+pub mod dist_tx;
 
 #[cfg(feature = "tantivy-search")]
 pub mod search;
@@ -28,6 +32,10 @@ pub use query::{Query, QueryResult};
 pub use replication::{ChangeFeed, ChangeRecord, Follower, ReplicationLog};
 pub use backup::{create_snapshot, list_snapshots, restore_snapshot, delete_snapshot, SnapshotMeta};
 pub use server::{AuthManager, ConnectionPool, HttpServer, MultiDbManager, TcpServer, run_tcp_server};
+pub use raft::{create_raft_node, RaftNode, RaftRole, SharedRaftNode, LogEntry, ClusterCommand, NodeId, Term, LogIndex, PersistentState, RequestVoteRequest, RequestVoteResponse, AppendEntriesRequest, AppendEntriesResponse};
+pub use cluster::{ClusterConfig, ClusterManager, ClusterNode, ClusterStatus, NodeInfo, NodeRole};
+pub use shard::{ShardAllocator, ShardMap, ShardRouter, ShardId};
+pub use dist_tx::{TwoPhaseCoordinator, DistributedTransaction, DistTxLog, TxOp, TxPhase, ParticipantVote, PrepareRequest, PrepareResponse, CommitRequest, AbortRequest, LocalParticipant};
 
 #[cfg(feature = "tantivy-search")]
 pub use search::{TantivySearch, SearchResult};
