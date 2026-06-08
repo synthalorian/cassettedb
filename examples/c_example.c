@@ -2,9 +2,9 @@
  * CassetteDB C Example
  * 
  * Build with:
- *   gcc -o c_example c_example.c -L../target/release -lcassettedb -Wl,-rpath,../target/release
+ *   gcc -o c_example c_example.c -L../target/release -llibcassettedb -Wl,-rpath,../target/release -lpthread -ldl -lm
  * Or with static linking:
- *   gcc -o c_example c_example.c ../target/release/libcassettedb.a -lpthread -ldl
+ *   gcc -o c_example c_example.c ../target/release/liblibcassettedb.a -lpthread -ldl -lm
  */
 
 #include <stdio.h>
