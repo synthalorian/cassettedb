@@ -1,0 +1,26 @@
+# cbindgen configuration for CassetteDB C FFI
+# Generate header with: cbindgen --crate libcassettedb --output cassette.h
+
+language = "C"
+no_includes = true
+
+[parse]
+parse_deps = false
+
+[export]
+include = ["CassetteDB"]
+prefix = "cassette_"
+
+[fn]
+rename_types = "None"
+
+[struct]
+rename_types = "None"
+
+[enum]
+rename_types = "None"
+
+[defines]
+
+[documentation]
+style = "c"
