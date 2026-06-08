@@ -1,0 +1,162 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_id: ${{ steps.create_release.outputs.id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "## CassetteDB $VERSION" > RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### What's New" >> RELEASE_NOTES.md
+          echo "See [CHANGELOG.md](https://github.com/synthalorian/cassettedb/blob/main/CHANGELOG.md) for full details." >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### Assets" >> RELEASE_NOTES.md
+          echo "- Pre-built binaries for Linux (x86_64, musl), macOS (x86_64, Apple Silicon), and Windows (x86_64)" >> RELEASE_NOTES.md
+          echo "- C FFI library (`libcassettedb`)" >> RELEASE_NOTES.md
+          echo "- Source code archive" >> RELEASE_NOTES.md
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: CassetteDB ${{ steps.release_notes.outputs.version }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+
+  build-and-upload:
+    name: Build Release Binaries
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            suffix: ""
+            name: linux-x86_64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            suffix: ""
+            name: linux-musl
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            suffix: ""
+            name: macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            suffix: ""
+            name: macos-aarch64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            suffix: ".exe"
+            name: windows-x86_64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Package binary
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/cassette${{ matrix.suffix }} dist/cassette-${{ matrix.name }}${{ matrix.suffix }}
+          cd dist
+          tar czf cassette-${{ matrix.name }}.tar.gz cassette-${{ matrix.name }}${{ matrix.suffix }}
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/cassette-${{ matrix.name }}.tar.gz
+          asset_name: cassette-${{ matrix.name }}.tar.gz
+          asset_content_type: application/gzip
+
+  publish-crate:
+    name: Publish to crates.io
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Verify crate metadata
+        run: cargo publish --dry-run
+      - name: Publish crate
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  build-c-lib:
+    name: Build C FFI Library
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            name: linux-x86_64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            name: macos-x86_64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            name: windows-x86_64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Build C library
+        run: cargo build -p libcassettedb --release --target ${{ matrix.target }}
+      - name: Package C library
+        shell: bash
+        run: |
+          mkdir -p dist
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp target/${{ matrix.target }}/release/cassettedb.dll dist/
+            cp target/${{ matrix.target }}/release/cassettedb.dll.lib dist/ 2>/dev/null || true
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            cp target/${{ matrix.target }}/release/libcassettedb.dylib dist/
+          else
+            cp target/${{ matrix.target }}/release/libcassettedb.so dist/
+          fi
+          cp cassette.h dist/
+          cd dist
+          tar czf libcassettedb-${{ matrix.name }}.tar.gz *
+      - name: Upload C Library Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/libcassettedb-${{ matrix.name }}.tar.gz
+          asset_name: libcassettedb-${{ matrix.name }}.tar.gz
+          asset_content_type: application/gzip
