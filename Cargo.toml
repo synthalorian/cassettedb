@@ -1,0 +1,32 @@
+[package]
+name = "cassettedb"
+version = "0.1.0"
+edition = "2021"
+authors = ["synthalorian <synth@example.com>"]
+description = "A single-file JSON document database inspired by SQLite"
+license = "MIT"
+repository = "https://github.com/synthalorian/cassettedb"
+keywords = ["database", "json", "document-store", "sqlite", "embedded"]
+categories = ["database-implementations", "data-structures"]
+rust-version = "1.75"
+
+[[bin]]
+name = "cassette"
+path = "src/bin/cassette.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.6", features = ["v4", "serde"] }
+thiserror = "1.0"
+anyhow = "1.0"
+clap = { version = "4.4", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+crc32fast = "1.3"
+byteorder = "1.5"
+memmap2 = "0.9"
+log = "0.4"
+env_logger = "0.11"
+
+[dev-dependencies]
+tempfile = "3.9"
