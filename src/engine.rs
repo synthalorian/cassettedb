@@ -9,18 +9,25 @@ use crate::document::Document;
 use crate::error::Result;
 use crate::index::InvertedIndex;
 use crate::query::{Query, QueryResult};
+use crate::replication::ChangeFeed;
 use crate::storage::Storage;
 use crate::wal::{Wal, WalOp};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "tantivy-search")]
+use crate::search::TantivySearch;
+
 /// CassetteDB engine.
 pub struct CassetteEngine {
-    db_path: PathBuf,
+    _db_path: PathBuf,
     wal: Wal,
     storage: Storage,
     docs: HashMap<String, Document>,
     index: InvertedIndex,
+    change_feed: Option<ChangeFeed>,
+    #[cfg(feature = "tantivy-search")]
+    tantivy: Option<TantivySearch>,
 }
 
 impl CassetteEngine {
@@ -84,14 +91,29 @@ impl CassetteEngine {
             }
         }
 
-        // If we recovered from WAL, sync to main storage (naïve: rewrite all).
-        // For the scaffold we just keep docs in memory and write on compact.
+        // Initialize optional change feed.
+        let repl_path = path.with_extension("repl");
+        let change_feed = if repl_path.parent().map(|p| p.exists()).unwrap_or(true) {
+            Some(ChangeFeed::open(&repl_path)?)
+        } else {
+            None
+        };
+
+        #[cfg(feature = "tantivy-search")]
+        let tantivy = {
+            let tantivy_path = path.with_extension("tantivy");
+            Some(TantivySearch::open(&tantivy_path)?)
+        };
+
         Ok(CassetteEngine {
-            db_path: path.to_path_buf(),
+            _db_path: path.to_path_buf(),
             wal,
             storage,
             docs,
             index,
+            change_feed,
+            #[cfg(feature = "tantivy-search")]
+            tantivy,
         })
     }
 
@@ -105,8 +127,20 @@ impl CassetteEngine {
         self.wal.commit_record(offset)?;
 
         self.index.index_document(&doc.id, &doc.data);
-        self.docs.insert(doc.id.clone(), doc);
+        self.docs.insert(doc.id.clone(), doc.clone());
         self.storage.increment_doc_count(1)?;
+
+        // Publish to change feed if enabled.
+        if let Some(ref mut feed) = self.change_feed {
+            feed.publish(WalOp::Insert, &doc.id, &payload)?;
+        }
+
+        // Index in Tantivy if enabled.
+        #[cfg(feature = "tantivy-search")]
+        if let Some(ref tantivy) = self.tantivy {
+            tantivy.index_document(&doc)?;
+        }
+
         Ok(self.docs.keys().last().unwrap().clone())
     }
 
@@ -125,7 +159,20 @@ impl CassetteEngine {
 
         self.index.remove_document(id, &old.data);
         self.index.index_document(id, &doc.data);
-        self.docs.insert(id.to_string(), doc);
+        self.docs.insert(id.to_string(), doc.clone());
+
+        // Publish to change feed if enabled.
+        if let Some(ref mut feed) = self.change_feed {
+            feed.publish(WalOp::Update, id, &payload)?;
+        }
+
+        // Update Tantivy index if enabled.
+        #[cfg(feature = "tantivy-search")]
+        if let Some(ref tantivy) = self.tantivy {
+            tantivy.remove_document(id)?;
+            tantivy.index_document(&doc)?;
+        }
+
         Ok(())
     }
 
@@ -140,6 +187,18 @@ impl CassetteEngine {
 
         self.index.remove_document(id, &old.data);
         self.storage.increment_doc_count(-1)?;
+
+        // Publish to change feed if enabled.
+        if let Some(ref mut feed) = self.change_feed {
+            feed.publish(WalOp::Delete, id, b"")?;
+        }
+
+        // Remove from Tantivy index if enabled.
+        #[cfg(feature = "tantivy-search")]
+        if let Some(ref tantivy) = self.tantivy {
+            tantivy.remove_document(id)?;
+        }
+
         Ok(())
     }
 
@@ -165,13 +224,10 @@ impl CassetteEngine {
     /// Compact the database: rewrite main file with current documents,
     /// then truncate the WAL.
     pub fn compact(&mut self) -> Result<()> {
-        // For the scaffold we simply serialize the document map to a single
-        // JSON blob and store it in page 1..N of the main file.
         let payload = serde_json::to_vec(&self.docs)?;
         let pages_needed =
             (payload.len() + crate::storage::PAGE_SIZE - 1) / crate::storage::PAGE_SIZE;
 
-        // Ensure we have enough pages.
         while (self.storage.header().num_pages as usize) < pages_needed + 1 {
             self.storage.allocate_page()?;
         }
@@ -182,7 +238,6 @@ impl CassetteEngine {
             self.storage.write_page((i + 1) as u32, &page)?;
         }
 
-        // Write a trailer page with a length marker so we can reload.
         let mut trailer = vec![0u8; crate::storage::PAGE_SIZE];
         let len_bytes = payload.len().to_le_bytes();
         trailer[..len_bytes.len()].copy_from_slice(&len_bytes);
@@ -190,6 +245,12 @@ impl CassetteEngine {
             .write_page((pages_needed + 1) as u32, &trailer)?;
 
         self.wal.reset()?;
+
+        // Optionally reset change feed.
+        if let Some(ref mut feed) = self.change_feed {
+            feed.reset()?;
+        }
+
         Ok(())
     }
 
@@ -201,6 +262,22 @@ impl CassetteEngine {
 
     pub fn doc_count(&self) -> usize {
         self.docs.len()
+    }
+
+    /// Access the change feed if enabled.
+    pub fn change_feed(&mut self) -> Option<&mut ChangeFeed> {
+        self.change_feed.as_mut()
+    }
+
+    /// Advanced search via Tantivy (requires `tantivy-search` feature).
+    #[cfg(feature = "tantivy-search")]
+    pub fn tantivy_search(&self, query: &str, limit: usize) -> Result<Vec<crate::search::SearchResult>> {
+        match &self.tantivy {
+            Some(t) => t.search(query, limit),
+            None => Err(crate::error::CassetteError::Index(
+                "Tantivy search not initialized".to_string(),
+            )),
+        }
     }
 }
 
@@ -252,5 +329,18 @@ mod tests {
         let q2 = Query::parse("search(\"alice\")").unwrap();
         let res2 = engine.query(&q2);
         assert_eq!(res2.count, 1);
+    }
+
+    #[test]
+    fn test_change_feed_integration() {
+        let dir = TempDir::new().unwrap();
+        let db_path = dir.path().join("test.cassette");
+        let mut engine = CassetteEngine::open(&db_path).unwrap();
+
+        let doc = Document::new(json!({"test": "feed"}));
+        engine.insert(doc).unwrap();
+
+        // Change feed should be initialized.
+        assert!(engine.change_feed().is_some());
     }
 }

@@ -27,4 +27,10 @@ pub enum CassetteError {
 
     #[error("Index error: {0}")]
     Index(String),
+
+    #[error("Replication error: {0}")]
+    Replication(String),
+
+    #[error("Backup error: {0}")]
+    Backup(String),
 }

@@ -1,6 +1,6 @@
 [package]
 name = "cassettedb"
-version = "0.1.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["synthalorian <synth@example.com>"]
 description = "A single-file JSON document database inspired by SQLite"
@@ -13,6 +13,10 @@ rust-version = "1.75"
 [[bin]]
 name = "cassette"
 path = "src/bin/cassette.rs"
+
+[[bench]]
+name = "cassettedb_benchmarks"
+harness = false
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -27,6 +31,13 @@ byteorder = "1.5"
 memmap2 = "0.9"
 log = "0.4"
 env_logger = "0.11"
+tantivy = { version = "0.22", optional = true, default-features = false, features = ["mmap"] }
+crossbeam-channel = "0.5"
 
 [dev-dependencies]
 tempfile = "3.9"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[features]
+default = []
+tantivy-search = ["dep:tantivy"]
