@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cassettedb"
+version = "0.9.0"
+description = "Python bindings for CassetteDB, a single-file JSON document database"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "synthalorian", email = "synth@example.com" }
+]
+keywords = ["database", "json", "document-store", "embedded", "ffi"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Database",
+    "Topic :: Database :: Database Engines/Servers",
+]
+requires-python = ">=3.9"
+
+[project.urls]
+Homepage = "https://github.com/synthalorian/cassettedb"
+Repository = "https://github.com/synthalorian/cassettedb"
+Documentation = "https://github.com/synthalorian/cassettedb#readme"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cassettedb*"]

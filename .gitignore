@@ -1,1 +1,18 @@
 /target
+
+# Python
+bindings/python/**/*.egg-info/
+bindings/python/**/__pycache__/
+bindings/python/**/*.pyc
+bindings/python/build/
+bindings/python/dist/
+
+# Node.js
+bindings/node/node_modules/
+bindings/node/index.node
+bindings/node/**/*.log
+
+# Go
+bindings/go/*.exe
+bindings/go/*.test
+bindings/go/*.out
