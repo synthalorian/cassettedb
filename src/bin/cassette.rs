@@ -26,6 +26,8 @@
 //!   dist-tx begin                  Begin a distributed transaction
 //!   dist-tx commit                 Commit a distributed transaction
 //!   dist-tx abort                  Abort a distributed transaction
+//!   migrate-config <dir>           Migrate configuration files to latest version
+//!   feedback <message>             Submit beta testing feedback
 
 use anyhow::Result;
 use cassettedb::document::Document;
@@ -121,6 +123,26 @@ enum Commands {
     DistTx {
         #[command(subcommand)]
         command: DistTxCommands,
+    },
+    /// Migrate configuration files to the latest version.
+    MigrateConfig {
+        /// Directory containing configuration files.
+        #[arg(default_value = "./cluster")]
+        config_dir: PathBuf,
+    },
+    /// Submit beta testing feedback.
+    Feedback {
+        /// Feedback message.
+        message: String,
+        /// Feedback category.
+        #[arg(long, default_value = "general")]
+        category: String,
+        /// Contact information (optional).
+        #[arg(long)]
+        contact: Option<String>,
+        /// Path to feedback log file.
+        #[arg(long, default_value = "./feedback.jsonl")]
+        log_path: PathBuf,
     },
 }
 
@@ -245,6 +267,7 @@ enum DistTxCommands {
 
 fn main() -> Result<()> {
     env_logger::init();
+    cassettedb::install_panic_hook();
     let cli = Cli::parse();
 
     match cli.command {
@@ -488,6 +511,40 @@ fn main() -> Result<()> {
                     println!("Aborted transaction {}", tx_id);
                 }
             }
+        }
+        Commands::MigrateConfig { config_dir } => {
+            let migrator = cassettedb::ConfigMigrator::new();
+            let migrated = migrator.migrate_directory(&config_dir)?;
+            if migrated.is_empty() {
+                println!("No configuration files needed migration in {}", config_dir.display());
+            } else {
+                println!("Migrated {} configuration file(s):", migrated.len());
+                for path in migrated {
+                    println!("  {}", path.display());
+                }
+            }
+        }
+        Commands::Feedback {
+            message,
+            category,
+            contact,
+            log_path,
+        } => {
+            let category = match category.as_str() {
+                "bug" => cassettedb::feedback::FeedbackCategory::Bug,
+                "feature" => cassettedb::feedback::FeedbackCategory::FeatureRequest,
+                "performance" => cassettedb::feedback::FeedbackCategory::Performance,
+                "docs" => cassettedb::feedback::FeedbackCategory::Documentation,
+                _ => cassettedb::feedback::FeedbackCategory::General,
+            };
+            cassettedb::feedback::submit_feedback(
+                &log_path,
+                category,
+                message,
+                env!("CARGO_PKG_VERSION").to_string(),
+                contact,
+            )?;
+            println!("Feedback recorded to {}", log_path.display());
         }
         Commands::Server {
             tcp_addr,

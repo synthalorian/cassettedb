@@ -21,6 +21,9 @@ pub mod raft;
 pub mod cluster;
 pub mod shard;
 pub mod dist_tx;
+pub mod crash_reporter;
+pub mod config_migration;
+pub mod feedback;
 
 #[cfg(feature = "tantivy-search")]
 pub mod search;
@@ -36,6 +39,9 @@ pub use raft::{create_raft_node, RaftNode, RaftRole, SharedRaftNode, LogEntry, C
 pub use cluster::{ClusterConfig, ClusterManager, ClusterNode, ClusterStatus, NodeInfo, NodeRole};
 pub use shard::{ShardAllocator, ShardMap, ShardRouter, ShardId};
 pub use dist_tx::{TwoPhaseCoordinator, DistributedTransaction, DistTxLog, TxOp, TxPhase, ParticipantVote, PrepareRequest, PrepareResponse, CommitRequest, AbortRequest, LocalParticipant};
+pub use crash_reporter::{install_panic_hook, capture_crash_report};
+pub use config_migration::{ConfigMigrator, VersionedConfig, CURRENT_CONFIG_VERSION};
+pub use feedback::{submit_feedback, read_feedback, FeedbackCategory, FeedbackEntry};
 
 #[cfg(feature = "tantivy-search")]
 pub use search::{TantivySearch, SearchResult};
