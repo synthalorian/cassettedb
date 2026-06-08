@@ -1,6 +1,6 @@
 [package]
 name = "cassettedb"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 authors = ["synthalorian <synth@example.com>"]
 description = "A single-file JSON document database inspired by SQLite"
@@ -9,6 +9,10 @@ repository = "https://github.com/synthalorian/cassettedb"
 keywords = ["database", "json", "document-store", "sqlite", "embedded"]
 categories = ["database-implementations", "data-structures"]
 rust-version = "1.75"
+
+[workspace]
+members = [".", "libcassettedb"]
+resolver = "2"
 
 [[bin]]
 name = "cassette"

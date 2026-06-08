@@ -1,0 +1,21 @@
+[package]
+name = "libcassettedb"
+version = "0.7.0"
+edition = "2021"
+authors = ["synthalorian <synth@example.com>"]
+description = "C FFI bindings for CassetteDB"
+license = "MIT"
+repository = "https://github.com/synthalorian/cassettedb"
+keywords = ["database", "json", "document-store", "ffi", "c-bindings"]
+categories = ["database-implementations", "external-ffi-bindings"]
+rust-version = "1.75"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+cassettedb = { path = ".." }
+serde_json = "1.0"
+
+[dev-dependencies]
+tempfile = "3.9"
