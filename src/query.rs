@@ -27,7 +27,7 @@ pub enum Query {
 }
 
 /// Result of a query.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct QueryResult {
     pub documents: Vec<Document>,
     pub count: usize,

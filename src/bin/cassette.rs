@@ -13,6 +13,7 @@
 //!   list-backups <snapshot-dir>    List available snapshots
 //!   replicate <file> <repl-log>    Start replication log
 //!   follow <repl-log>              Poll replication log for changes
+//!   server                         Start server mode (TCP and/or HTTP)
 
 use anyhow::Result;
 use cassettedb::document::Document;
@@ -21,6 +22,7 @@ use cassettedb::query::Query;
 use cassettedb::replication::Follower;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Parser)]
 #[command(name = "cassette")]
@@ -73,6 +75,30 @@ enum Commands {
         repl_log: PathBuf,
         #[arg(default_value = "0")]
         since: u64,
+    },
+    /// Start server mode (TCP and/or HTTP).
+    Server {
+        /// TCP bind address (e.g., 127.0.0.1:6543).
+        #[arg(long, default_value = "127.0.0.1:6543")]
+        tcp_addr: String,
+        /// HTTP bind address (e.g., 127.0.0.1:8080).
+        #[arg(long, default_value = "127.0.0.1:8080")]
+        http_addr: String,
+        /// Directory to store databases.
+        #[arg(long, default_value = "./databases")]
+        db_dir: PathBuf,
+        /// Authentication token (if not set, auth is disabled).
+        #[arg(long)]
+        auth_token: Option<String>,
+        /// Connection pool size per database.
+        #[arg(long, default_value = "10")]
+        pool_size: usize,
+        /// Run only TCP server.
+        #[arg(long, group = "mode")]
+        tcp_only: bool,
+        /// Run only HTTP server.
+        #[arg(long, group = "mode")]
+        http_only: bool,
     },
 }
 
@@ -174,6 +200,49 @@ fn main() -> Result<()> {
                     );
                 }
             }
+        }
+        Commands::Server {
+            tcp_addr,
+            http_addr,
+            db_dir,
+            auth_token,
+            pool_size,
+            tcp_only,
+            http_only,
+        } => {
+            std::fs::create_dir_all(&db_dir)?;
+            let pool = Arc::new(cassettedb::ConnectionPool::new(&db_dir, pool_size)?);
+            let auth = Arc::new(cassettedb::AuthManager::new(auth_token));
+
+            let rt = tokio::runtime::Runtime::new()?;
+            rt.block_on(async {
+                if !http_only {
+                    let tcp_pool = pool.clone();
+                    let tcp_auth = auth.clone();
+                    let tcp_addr_clone = tcp_addr.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = cassettedb::run_tcp_server(tcp_pool, tcp_auth, &tcp_addr_clone).await {
+                            eprintln!("TCP server error: {}", e);
+                        }
+                    });
+                }
+
+                if !tcp_only {
+                    let http_pool = pool.clone();
+                    let http_auth = auth.clone();
+                    tokio::spawn(async move {
+                        let http_server = cassettedb::HttpServer::new(http_pool, http_auth);
+                        if let Err(e) = http_server.run(&http_addr).await {
+                            eprintln!("HTTP server error: {}", e);
+                        }
+                    });
+                }
+
+                println!("Server running. Press Ctrl+C to stop.");
+                loop {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+                }
+            });
         }
     }
 
