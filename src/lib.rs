@@ -14,8 +14,18 @@ pub mod index;
 pub mod query;
 pub mod engine;
 pub mod document;
+pub mod replication;
+pub mod backup;
+
+#[cfg(feature = "tantivy-search")]
+pub mod search;
 
 pub use error::{CassetteError, Result};
 pub use engine::CassetteEngine;
 pub use document::Document;
 pub use query::{Query, QueryResult};
+pub use replication::{ChangeFeed, ChangeRecord, Follower, ReplicationLog};
+pub use backup::{create_snapshot, list_snapshots, restore_snapshot, delete_snapshot, SnapshotMeta};
+
+#[cfg(feature = "tantivy-search")]
+pub use search::{TantivySearch, SearchResult};
