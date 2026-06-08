@@ -33,4 +33,13 @@ pub enum CassetteError {
 
     #[error("Backup error: {0}")]
     Backup(String),
+
+    #[error("Cluster error: {0}")]
+    Cluster(String),
+
+    #[error("Shard error: {0}")]
+    Shard(String),
+
+    #[error("Distributed transaction error: {0}")]
+    DistTx(String),
 }

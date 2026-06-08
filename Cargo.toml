@@ -1,6 +1,6 @@
 [package]
 name = "cassettedb"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 authors = ["synthalorian <synth@example.com>"]
 description = "A single-file JSON document database inspired by SQLite"
