@@ -18,6 +18,7 @@ pub enum WalOp {
     Insert = 1,
     Update = 2,
     Delete = 3,
+    TxEntry = 4,
 }
 
 /// A single WAL record.
@@ -28,6 +29,17 @@ pub struct WalRecord {
     pub payload: Vec<u8>, // JSON bytes
 }
 
+/// WAL entry for transaction-based logging.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum WalEntry {
+    Begin { tx_id: u64 },
+    Insert { tx_id: u64, collection: String, doc: serde_json::Value },
+    Update { tx_id: u64, collection: String, id: String, doc: serde_json::Value },
+    Delete { tx_id: u64, collection: String, id: String },
+    Commit { tx_id: u64 },
+    Abort { tx_id: u64 },
+}
+
 /// WAL file header.
 const WAL_MAGIC: &[u8; 4] = b"CWL1";
 const WAL_VERSION: u16 = 1;
@@ -36,6 +48,7 @@ const WAL_VERSION: u16 = 1;
 pub struct Wal {
     file: File,
     path: std::path::PathBuf,
+    tx_counter: u64,
 }
 
 impl Wal {
@@ -47,6 +60,7 @@ impl Wal {
             .open(path)?;
 
         let meta = file.metadata()?;
+        let tx_counter = 0;
         if meta.len() == 0 {
             // Initialize new WAL file.
             let mut writer = BufWriter::new(&file);
@@ -72,11 +86,12 @@ impl Wal {
         Ok(Wal {
             file,
             path: path.to_path_buf(),
+            tx_counter,
         })
     }
 
-    /// Append a record to the WAL. Returns the file offset of the record.
-    pub fn append(&mut self, op: WalOp, doc_id: &str, payload: &[u8]) -> Result<u64> {
+    /// Append a low-level record to the WAL. Returns the file offset of the record.
+    pub fn append_record(&mut self, op: WalOp, doc_id: &str, payload: &[u8]) -> Result<u64> {
         let offset = self.file.seek(SeekFrom::End(0))?;
 
         let mut hasher = Crc32::new();
@@ -94,6 +109,122 @@ impl Wal {
         writer.flush()?;
 
         Ok(offset)
+    }
+
+    /// Append a WAL entry (transaction log record).
+    pub fn append(&mut self, entry: &WalEntry) -> Result<()> {
+        let payload = serde_json::to_vec(entry)?;
+        let _offset = self.append_record(WalOp::TxEntry, "tx", &payload)?;
+        Ok(())
+    }
+
+    /// Begin a new transaction. Returns a transaction ID.
+    pub fn begin(&mut self) -> Result<u64> {
+        self.tx_counter += 1;
+        let tx_id = self.tx_counter;
+        self.append(&WalEntry::Begin { tx_id })?;
+        Ok(tx_id)
+    }
+
+    /// Commit a transaction by writing a commit marker.
+    pub fn commit(&mut self, tx_id: u64) -> Result<()> {
+        self.append(&WalEntry::Commit { tx_id })
+    }
+
+    /// Abort a transaction by writing an abort marker.
+    pub fn abort(&mut self, tx_id: u64) -> Result<()> {
+        self.append(&WalEntry::Abort { tx_id })
+    }
+
+    /// Truncate the WAL (e.g., after compaction).
+    pub fn truncate(&mut self) -> Result<()> {
+        self.reset()
+    }
+
+    /// Replay committed WAL entries via the provided callback.
+    pub fn replay<F>(&mut self, mut f: F) -> Result<()>
+    where
+        F: FnMut(&WalEntry) -> Result<()>,
+    {
+        self.file.seek(SeekFrom::Start(6))?; // after header
+        let mut reader = BufReader::new(&self.file);
+
+        let mut current_tx: Option<u64> = None;
+        let mut pending: Vec<WalEntry> = Vec::new();
+
+        loop {
+            let op = match reader.read_u8() {
+                Ok(v) => v,
+                Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
+                Err(e) => return Err(e.into()),
+            };
+
+            let id_len = match reader.read_u32::<LittleEndian>() {
+                Ok(v) => v as usize,
+                Err(e) => return Err(e.into()),
+            };
+            let mut id_buf = vec![0u8; id_len];
+            if let Err(e) = reader.read_exact(&mut id_buf) {
+                return Err(e.into());
+            }
+
+            let payload_len = match reader.read_u32::<LittleEndian>() {
+                Ok(v) => v as usize,
+                Err(e) => return Err(e.into()),
+            };
+            let mut payload = vec![0u8; payload_len];
+            if let Err(e) = reader.read_exact(&mut payload) {
+                return Err(e.into());
+            }
+
+            let _checksum = match reader.read_u32::<LittleEndian>() {
+                Ok(v) => v,
+                Err(e) => return Err(e.into()),
+            };
+
+            let _commit_flag = match reader.read_u8() {
+                Ok(v) => v,
+                Err(e) => return Err(e.into()),
+            };
+
+            if op == WalOp::TxEntry as u8 {
+                let entry: WalEntry = match serde_json::from_slice(&payload) {
+                    Ok(e) => e,
+                    Err(_) => continue,
+                };
+                match &entry {
+                    WalEntry::Begin { tx_id } => {
+                        current_tx = Some(*tx_id);
+                        pending.clear();
+                    }
+                    WalEntry::Commit { tx_id } => {
+                        if current_tx == Some(*tx_id) {
+                            for e in &pending {
+                                f(e)?;
+                            }
+                        }
+                        current_tx = None;
+                        pending.clear();
+                    }
+                    WalEntry::Abort { tx_id } => {
+                        if current_tx == Some(*tx_id) {
+                            // discard pending
+                        }
+                        current_tx = None;
+                        pending.clear();
+                    }
+                    _ => {
+                        if current_tx.is_some() {
+                            pending.push(entry.clone());
+                        } else {
+                            f(&entry)?;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Mark a previously written record (by offset) as committed.
@@ -184,6 +315,10 @@ impl<R: Read> Iterator for WalIter<R> {
             1 => WalOp::Insert,
             2 => WalOp::Update,
             3 => WalOp::Delete,
+            4 => {
+                // TxEntry records are skipped by the old iterator.
+                return self.next();
+            }
             _ => return Some(Err(CassetteError::Wal("Unknown op".into()))),
         };
 

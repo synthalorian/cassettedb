@@ -59,6 +59,7 @@ impl CassetteEngine {
                             index.remove_document(&record.doc_id, &old.data);
                         }
                     }
+                    WalOp::TxEntry => {}
                 }
             }
         }
@@ -123,7 +124,7 @@ impl CassetteEngine {
             doc = Document::new(doc.data);
         }
         let payload = serde_json::to_vec(&doc)?;
-        let offset = self.wal.append(WalOp::Insert, &doc.id, &payload)?;
+        let offset = self.wal.append_record(WalOp::Insert, &doc.id, &payload)?;
         self.wal.commit_record(offset)?;
 
         self.index.index_document(&doc.id, &doc.data);
@@ -154,7 +155,7 @@ impl CassetteEngine {
         let mut doc = old.clone();
         doc.data = data;
         let payload = serde_json::to_vec(&doc)?;
-        let offset = self.wal.append(WalOp::Update, id, &payload)?;
+        let offset = self.wal.append_record(WalOp::Update, id, &payload)?;
         self.wal.commit_record(offset)?;
 
         self.index.remove_document(id, &old.data);
@@ -182,7 +183,7 @@ impl CassetteEngine {
             .docs
             .remove(id)
             .ok_or_else(|| crate::error::CassetteError::NotFound(id.to_string()))?;
-        let offset = self.wal.append(WalOp::Delete, id, b"")?;
+        let offset = self.wal.append_record(WalOp::Delete, id, b"")?;
         self.wal.commit_record(offset)?;
 
         self.index.remove_document(id, &old.data);
