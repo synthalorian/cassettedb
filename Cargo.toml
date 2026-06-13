@@ -8,7 +8,7 @@ license = "MIT"
 repository = "https://github.com/synthalorian/cassettedb"
 keywords = ["database", "json", "document-store", "sqlite", "embedded"]
 categories = ["database-implementations", "data-structures"]
-rust-version = "1.75"
+rust-version = "1.81"
 
 [workspace]
 members = [".", "libcassettedb", "bindings/node"]

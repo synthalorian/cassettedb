@@ -57,6 +57,7 @@ impl Wal {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(path)?;
 
         let meta = file.metadata()?;
@@ -177,15 +178,9 @@ impl Wal {
                 return Err(e.into());
             }
 
-            let _checksum = match reader.read_u32::<LittleEndian>() {
-                Ok(v) => v,
-                Err(e) => return Err(e.into()),
-            };
+            let _checksum = reader.read_u32::<LittleEndian>()?;
 
-            let _commit_flag = match reader.read_u8() {
-                Ok(v) => v,
-                Err(e) => return Err(e.into()),
-            };
+            let _commit_flag = reader.read_u8()?;
 
             if op == WalOp::TxEntry as u8 {
                 let entry: WalEntry = match serde_json::from_slice(&payload) {

@@ -25,6 +25,12 @@ pub struct Header {
     pub doc_count: u32,
 }
 
+impl Default for Header {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Header {
     pub fn new() -> Self {
         Self {
@@ -39,12 +45,12 @@ impl Header {
 
     pub fn encode(&self) -> Vec<u8> {
         let mut buf = Vec::with_capacity(64);
-        buf.write_all(&self.magic).unwrap();
-        buf.write_u16::<LittleEndian>(self.version).unwrap();
-        buf.write_u16::<LittleEndian>(self.page_size).unwrap();
-        buf.write_u32::<LittleEndian>(self.num_pages).unwrap();
-        buf.write_u32::<LittleEndian>(self.free_list_head).unwrap();
-        buf.write_u32::<LittleEndian>(self.doc_count).unwrap();
+        buf.write_all(&self.magic).expect("writing to Vec<u8> is infallible");
+        buf.write_u16::<LittleEndian>(self.version).expect("writing to Vec<u8> is infallible");
+        buf.write_u16::<LittleEndian>(self.page_size).expect("writing to Vec<u8> is infallible");
+        buf.write_u32::<LittleEndian>(self.num_pages).expect("writing to Vec<u8> is infallible");
+        buf.write_u32::<LittleEndian>(self.free_list_head).expect("writing to Vec<u8> is infallible");
+        buf.write_u32::<LittleEndian>(self.doc_count).expect("writing to Vec<u8> is infallible");
         buf.resize(PAGE_SIZE, 0);
         buf
     }
@@ -53,7 +59,7 @@ impl Header {
         if bytes.len() < 64 {
             return Err(CassetteError::Corrupt("Header too short".into()));
         }
-        let mut r = &bytes[..];
+        let mut r = bytes;
         let mut magic = [0u8; 4];
         r.read_exact(&mut magic)?;
         if &magic != MAGIC {
@@ -87,6 +93,7 @@ impl Storage {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(path)?;
 
         let meta = file.metadata()?;

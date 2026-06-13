@@ -337,9 +337,7 @@ fn extract_query_param(path: &str, key: &str) -> Option<String> {
     if let Some(pos) = path.find('?') {
         let query = &path[pos + 1..];
         for pair in query.split('&') {
-            let mut parts = pair.splitn(2, '=');
-            let k = parts.next()?;
-            let v = parts.next()?;
+            let (k, v) = pair.split_once('=')?;
             if k == key {
                 return Some(url_decode(v));
             }

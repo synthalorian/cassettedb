@@ -32,7 +32,7 @@ pub struct CassetteDB {
 }
 
 thread_local! {
-    static LAST_ERROR: RefCell<Option<String>> = RefCell::new(None);
+    static LAST_ERROR: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
 /// Store an error message in thread-local storage.

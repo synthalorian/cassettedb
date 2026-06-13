@@ -4,9 +4,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap, HashSet};
-#[cfg(not(feature = "compression"))]
 use std::fs::{File, OpenOptions};
-#[cfg(not(feature = "compression"))]
 use std::io::{BufReader, BufWriter, Read};
 use std::path::Path;
 
@@ -56,7 +54,6 @@ impl Cassette {
         }
     }
 
-    #[cfg(not(feature = "compression"))]
     pub fn open(path: &Path) -> Result<Self> {
         if !path.exists() {
             return Ok(Self::new());
@@ -69,33 +66,12 @@ impl Cassette {
         Ok(cassette)
     }
 
-    #[cfg(feature = "compression")]
-    pub fn open(path: &Path) -> Result<Self> {
-        if !path.exists() {
-            return Ok(Self::new());
-        }
-        let bytes = std::fs::read(path)?;
-
-        // Check for zstd magic bytes (0x28B52FFD)
-        if bytes.starts_with(&[0x28, 0xB5, 0x2F, 0xFD]) {
-            let decompressed = zstd::stream::decode_all(&bytes[..])?;
-            let contents = String::from_utf8(decompressed)?;
-            let cassette: Cassette = serde_json::from_str(&contents)?;
-            Ok(cassette)
-        } else {
-            let contents = String::from_utf8(bytes)?;
-            let cassette: Cassette = serde_json::from_str(&contents)?;
-            Ok(cassette)
-        }
-    }
-
     /// Open the cassette and replay any committed WAL entries for recovery.
-    #[cfg(not(feature = "compression"))]
     pub fn open_with_wal(path: &Path) -> Result<Self> {
         let mut cassette = Self::open(path)?;
         let wal_path = path.with_extension("wal");
         if wal_path.exists() {
-            let wal = crate::wal::Wal::open(path)?;
+            let mut wal = crate::wal::Wal::open(path)?;
             wal.replay(|entry| {
                 use crate::wal::WalEntry;
                 match entry {
@@ -118,35 +94,7 @@ impl Cassette {
         Ok(cassette)
     }
 
-    #[cfg(feature = "compression")]
-    pub fn open_with_wal(path: &Path) -> Result<Self> {
-        let mut cassette = Self::open(path)?;
-        let wal_path = path.with_extension("wal");
-        if wal_path.exists() {
-            let wal = crate::wal::Wal::open(path)?;
-            wal.replay(|entry| {
-                use crate::wal::WalEntry;
-                match entry {
-                    WalEntry::Insert { collection, doc, .. } => {
-                        let _ = cassette.insert(collection, doc.clone());
-                    }
-                    WalEntry::Update { collection, id, doc, .. } => {
-                        let _ = cassette.update(collection, id, doc.clone());
-                    }
-                    WalEntry::Delete { collection, id, .. } => {
-                        let _ = cassette.delete(collection, id);
-                    }
-                    _ => {}
-                }
-                Ok(())
-            })?;
-            cassette.save(path)?;
-        }
-        Ok(cassette)
-    }
-
     /// ACID-like save: write to temp file, then atomic rename
-    #[cfg(not(feature = "compression"))]
     pub fn save(&self, path: &Path) -> Result<()> {
         let temp_path = path.with_extension("tmp");
         let file = OpenOptions::new()
@@ -156,16 +104,6 @@ impl Cassette {
             .open(&temp_path)?;
         let writer = BufWriter::new(file);
         serde_json::to_writer_pretty(writer, self)?;
-        std::fs::rename(&temp_path, path)?;
-        Ok(())
-    }
-
-    #[cfg(feature = "compression")]
-    pub fn save(&self, path: &Path) -> Result<()> {
-        let temp_path = path.with_extension("tmp");
-        let json = serde_json::to_vec_pretty(self)?;
-        let compressed = zstd::stream::encode_all(&json[..], 3)?;
-        std::fs::write(&temp_path, compressed)?;
         std::fs::rename(&temp_path, path)?;
         Ok(())
     }
@@ -251,7 +189,7 @@ impl Cassette {
     pub fn add_to_secondary_index(index: &mut SecondaryIndex, field: &str, doc: &Document) {
         if let Some(value) = doc.data.get(field) {
             let key = Self::value_to_index_key(value);
-            index.entry(key).or_insert_with(Vec::new).push(doc.id.clone());
+            index.entry(key).or_default().push(doc.id.clone());
         }
     }
 
@@ -282,6 +220,7 @@ impl Cassette {
         }
     }
 
+    #[allow(dead_code)]
     fn reindex_secondary(secondary_indexes: &mut HashMap<String, SecondaryIndex>, doc: &Document) {
         for (field, index) in secondary_indexes.iter_mut() {
             Self::remove_from_secondary_index(index, field, doc);
@@ -291,7 +230,7 @@ impl Cassette {
 
     /// Tokenize text and update the collection's inverted index
     pub fn index_document(inverted_index: &mut InvertedIndex, doc: &Document) {
-        let re = Regex::new(r"[^a-zA-Z0-9]+").unwrap();
+        let re = Regex::new(r"[^a-zA-Z0-9]+").expect("regex should be valid");
         if let Some(obj) = doc.data.as_object() {
             for (field, value) in obj {
                 if let Some(text) = value.as_str() {
@@ -302,11 +241,11 @@ impl Cassette {
                         .collect();
                     let field_index = inverted_index
                         .entry(field.clone())
-                        .or_insert_with(HashMap::new);
+                        .or_default();
                     for token in tokens {
                         field_index
                             .entry(token)
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .push(doc.id.clone());
                     }
                 }
@@ -321,7 +260,7 @@ impl Cassette {
             None => return Ok(vec![]),
         };
 
-        let re = Regex::new(r"[^a-zA-Z0-9]+").unwrap();
+        let re = Regex::new(r"[^a-zA-Z0-9]+").expect("regex should be valid");
         let query_tokens: Vec<String> = re
             .split(query)
             .filter(|t| !t.is_empty())
@@ -346,7 +285,7 @@ impl Cassette {
 
         // Sort by score (descending) and return matching docs
         let mut scored_ids: Vec<(String, usize)> = scores.into_iter().collect();
-        scored_ids.sort_by(|a, b| b.1.cmp(&a.1));
+        scored_ids.sort_by_key(|b| std::cmp::Reverse(b.1));
 
         let ids: Vec<String> = scored_ids.into_iter().map(|(id, _)| id).collect();
         let mut results = Vec::new();
@@ -392,7 +331,7 @@ impl Cassette {
             .iter()
             .filter(|d| !d.deleted)
             .filter(|d| match d.data.get(key) {
-                Some(v) => v.as_str().map_or(false, |s| s == val),
+                Some(v) => v.as_str() == Some(val),
                 None => false,
             })
             .collect())
@@ -424,7 +363,7 @@ impl Cassette {
                         }
                         for id in ids {
                             if let Some(doc) = coll.documents.iter().find(|d| d.id == *id && !d.deleted) {
-                                if Self::value_to_index_key(&doc.data[field]) > value.to_string() {
+                                if Self::value_to_index_key(&doc.data[field]).as_str() > value {
                                     results.push(doc);
                                 }
                             }
@@ -471,10 +410,10 @@ impl Cassette {
                         Some(v) => {
                             let key = Self::value_to_index_key(v);
                             match op {
-                                ">" => key > value.to_string(),
-                                "<" => key < value.to_string(),
-                                ">=" => key >= value.to_string(),
-                                "<=" => key <= value.to_string(),
+                                ">" => key.as_str() > value,
+                                "<" => key.as_str() < value,
+                                ">=" => key.as_str() >= value,
+                                "<=" => key.as_str() <= value,
                                 _ => false,
                             }
                         }
@@ -606,7 +545,7 @@ impl Cassette {
 
             // Rebuild secondary indexes after compaction
             let mut new_secondary: HashMap<String, SecondaryIndex> = HashMap::new();
-            for (field, _) in &coll.secondary_indexes {
+            for field in coll.secondary_indexes.keys() {
                 let mut index: SecondaryIndex = BTreeMap::new();
                 for doc in &coll.documents {
                     Self::add_to_secondary_index(&mut index, field, doc);
@@ -644,7 +583,7 @@ impl Cassette {
             .iter()
             .filter(|d| !d.deleted)
             .filter(|d| match d.data.get(key) {
-                Some(v) => v.as_str().map_or(false, |s| s == val),
+                Some(v) => v.as_str() == Some(val),
                 None => false,
             })
             .cloned()

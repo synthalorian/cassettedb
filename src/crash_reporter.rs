@@ -3,7 +3,6 @@
 //! Captures panics and backtraces to aid debugging and stability testing.
 
 use backtrace::Backtrace;
-use std::panic::PanicHookInfo;
 use std::sync::Once;
 
 static CRASH_REPORTER_INIT: Once = Once::new();
@@ -15,7 +14,7 @@ pub fn install_panic_hook() {
     });
 }
 
-fn panic_hook(info: &PanicHookInfo) {
+fn panic_hook(info: &std::panic::PanicHookInfo) {
     let bt = Backtrace::new();
     eprintln!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     eprintln!("CassetteDB has encountered a fatal error and crashed.");
@@ -35,7 +34,7 @@ fn panic_hook(info: &PanicHookInfo) {
 }
 
 /// Generate a crash report string for programmatic use.
-pub fn capture_crash_report(info: &PanicHookInfo) -> String {
+pub fn capture_crash_report(info: &std::panic::PanicHookInfo) -> String {
     let bt = Backtrace::new();
     let mut report = String::new();
     report.push_str("CassetteDB Crash Report\n");

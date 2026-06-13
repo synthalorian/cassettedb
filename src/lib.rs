@@ -24,6 +24,7 @@ pub mod dist_tx;
 pub mod crash_reporter;
 pub mod config_migration;
 pub mod feedback;
+pub mod db;
 
 #[cfg(feature = "tantivy-search")]
 pub mod search;

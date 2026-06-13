@@ -1,6 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId, SamplingMode, Throughput};
 use tempfile::TempDir;
 use rand::seq::SliceRandom;
+use rand::thread_rng;
 
 fn make_doc(i: usize) -> serde_json::Value {
     serde_json::json!({
@@ -155,7 +156,7 @@ fn bench_random_reads(c: &mut Criterion) {
             }
             db.save(&path).unwrap();
 
-            let mut rng = rand::rng();
+            let mut rng = thread_rng();
             ids.shuffle(&mut rng);
 
             b.iter(|| {
@@ -213,124 +214,6 @@ fn bench_write_throughput(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(feature = "replication")]
-fn bench_replication_lag(c: &mut Criterion) {
-    use std::sync::Arc;
-    use std::time::Instant;
-    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-    use tokio::net::TcpStream;
-    use tokio::sync::broadcast;
-
-    let mut group = c.benchmark_group("replication_lag");
-    group.sampling_mode(SamplingMode::Flat);
-    group.sample_size(50);
-    group.measurement_time(std::time::Duration::from_secs(10));
-
-    group.bench_function("command_roundtrip", |b| {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        let tmp = TempDir::new().unwrap();
-        let path = tmp.path().join("follower.cassette");
-
-        // Start leader
-        let (tx, _rx) = broadcast::channel::<cassettedb::replication::ReplicateCmd>(1024);
-        let tx_arc = Arc::new(tx);
-        let tx_clone = Arc::clone(&tx_arc);
-
-        let listener = rt.block_on(tokio::net::TcpListener::bind("127.0.0.1:0")).unwrap();
-        let addr = listener.local_addr().unwrap();
-
-        // Spawn leader acceptor
-        let leader_handle = rt.spawn(async move {
-            loop {
-                let (socket, _) = listener.accept().await.unwrap();
-                let mut rx = tx_clone.subscribe();
-                tokio::spawn(async move {
-                    let (_, mut writer) = socket.into_split();
-                    loop {
-                        match rx.recv().await {
-                            Ok(cmd) => {
-                                let line = serde_json::to_string(&cmd).unwrap() + "\n";
-                                if writer.write_all(line.as_bytes()).await.is_err() {
-                                    break;
-                                }
-                                if writer.flush().await.is_err() {
-                                    break;
-                                }
-                            }
-                            Err(_) => break,
-                        }
-                    }
-                });
-            }
-        });
-
-        // Connect follower
-        let follower_path = path.clone();
-        let follower_handle = rt.spawn(async move {
-            let stream = TcpStream::connect(addr).await.unwrap();
-            let (reader, mut writer) = stream.into_split();
-            let mut reader = BufReader::new(reader);
-            let mut line = String::new();
-
-            // Handshake
-            let handshake = serde_json::json!({ "role": "follower" });
-            writer.write_all((serde_json::to_string(&handshake).unwrap() + "\n").as_bytes()).await.unwrap();
-            writer.flush().await.unwrap();
-
-            let mut cassette = cassettedb::db::Cassette::open(&follower_path).unwrap();
-
-            loop {
-                line.clear();
-                match reader.read_line(&mut line).await {
-                    Ok(0) => break,
-                    Ok(_) => {
-                        if let Ok(cmd) = serde_json::from_str::<cassettedb::replication::ReplicateCmd>(&line) {
-                            match cmd {
-                                cassettedb::replication::ReplicateCmd::Insert { collection, doc } => {
-                                    let _ = cassette.insert(&collection, doc);
-                                }
-                                cassettedb::replication::ReplicateCmd::Update { collection, id, doc } => {
-                                    let _ = cassette.update(&collection, &id, doc);
-                                }
-                                cassettedb::replication::ReplicateCmd::Delete { collection, id } => {
-                                    let _ = cassette.delete(&collection, &id);
-                                }
-                                cassettedb::replication::ReplicateCmd::Heartbeat => {}
-                            }
-                            let _ = cassette.save(&follower_path);
-                        }
-                    }
-                    Err(_) => break,
-                }
-            }
-        });
-
-        // Give time for connection to establish
-        std::thread::sleep(std::time::Duration::from_millis(100));
-
-        let cmd = cassettedb::replication::ReplicateCmd::Insert {
-            collection: "users".to_string(),
-            doc: make_doc(0),
-        };
-
-        b.iter_custom(|iters| {
-            let start = Instant::now();
-            for _ in 0..iters {
-                let _ = tx_arc.send(cmd.clone());
-                // Small delay to allow processing; we're measuring broadcast + network + apply
-                std::thread::sleep(std::time::Duration::from_micros(100));
-            }
-            start.elapsed()
-        });
-
-        drop(leader_handle);
-        drop(follower_handle);
-    });
-
-    group.finish();
-}
-
-#[cfg(not(feature = "replication"))]
 fn bench_replication_lag(_c: &mut Criterion) {
     // Replication lag benchmark requires the `replication` feature
 }
