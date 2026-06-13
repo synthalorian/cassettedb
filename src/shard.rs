@@ -123,9 +123,8 @@ impl ShardRouter {
         let hash = Self::hash_key(doc_id);
         // Find the first virtual node with hash >= doc hash.
         let mut candidate = None;
-        for (_, shard) in self.ring.range(hash..) {
+        if let Some((_, shard)) = self.ring.range(hash..).next() {
             candidate = Some(shard.clone());
-            break;
         }
         // Wrap around to the first virtual node.
         candidate.or_else(|| self.ring.values().next().cloned())
@@ -232,12 +231,12 @@ impl ShardRouter {
             for doc in docs {
                 if self.shard_for(&doc.id).as_ref() == Some(target_shard) {
                     source.delete(&doc.id)?;
-                    let target = if self.engines.contains_key(target_shard) {
-                        self.engines.get_mut(target_shard).unwrap()
+                    let target = if let Some(engine) = self.engines.get_mut(target_shard) {
+                        engine
                     } else {
                         let engine = CassetteEngine::open(&target_path)?;
                         self.engines.insert(target_shard.clone(), engine);
-                        self.engines.get_mut(target_shard).unwrap()
+                        self.engines.get_mut(target_shard).expect("just inserted")
                     };
                     target.insert(doc)?;
                     moved += 1;

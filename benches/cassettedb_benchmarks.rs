@@ -145,19 +145,20 @@ fn bench_search(c: &mut Criterion) {
 fn bench_update_delete(c: &mut Criterion) {
     let mut group = c.benchmark_group("update_delete");
     
-    group.bench_function("update_single", |b| {
-        let (_dir, _path, mut engine) = create_test_db();
-        let mut ids = Vec::new();
-        for i in 0..100 {
-            ids.push(engine.insert(Document::new(json!({"value": i}))).unwrap());
-        }
-        let mut i = 0;
-        b.iter(|| {
-            let id = &ids[i % ids.len()];
-            black_box(engine.update(id, json!({"value": i})).unwrap());
-            i += 1;
+        group.bench_function("update_single", |b| {
+            let (_dir, _path, mut engine) = create_test_db();
+            let mut ids = Vec::new();
+            for i in 0..100 {
+                ids.push(engine.insert(Document::new(json!({"value": i}))).unwrap());
+            }
+            let mut i = 0;
+            b.iter(|| {
+                let id = &ids[i % ids.len()];
+                engine.update(id, json!({"value": i})).unwrap();
+                black_box(());
+                i += 1;
+            });
         });
-    });
     
     group.bench_function("delete_single", |b| {
         b.iter_with_setup(
@@ -171,7 +172,8 @@ fn bench_update_delete(c: &mut Criterion) {
             },
             |(ids, mut engine)| {
                 for id in ids {
-                    black_box(engine.delete(&id).unwrap());
+                    engine.delete(&id).unwrap();
+                    black_box(());
                 }
             },
         );
@@ -194,7 +196,8 @@ fn bench_compact(c: &mut Criterion) {
                     engine
                 },
                 |mut engine| {
-                    black_box(engine.compact().unwrap());
+                    engine.compact().unwrap();
+                    black_box(());
                 },
             );
         });
@@ -333,8 +336,9 @@ fn bench_dist_tx(c: &mut Criterion) {
                     vote: ParticipantVote::Yes,
                 },
             ];
-            black_box(coord.prepare(&tx_id, responses).unwrap());
-            black_box(coord.commit(&tx_id).unwrap());
+            coord.prepare(&tx_id, responses).unwrap();
+            coord.commit(&tx_id).unwrap();
+            black_box(());
             i += 1;
         });
     });

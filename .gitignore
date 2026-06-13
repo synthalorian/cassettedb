@@ -16,3 +16,9 @@ bindings/node/**/*.log
 bindings/go/*.exe
 bindings/go/*.test
 bindings/go/*.out
+
+# AI session artifacts
+.sandbox-home/
+.claw/
+.omo/
+.clawd-todos.json

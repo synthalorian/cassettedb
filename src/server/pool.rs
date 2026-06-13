@@ -21,7 +21,7 @@ pub struct PooledConnection {
 impl PooledConnection {
     /// Access the underlying engine.
     pub fn engine(&mut self) -> &mut CassetteEngine {
-        self.engine.as_mut().unwrap()
+        self.engine.as_mut().expect("engine should be present in pooled connection")
     }
 
     /// Get the database path.
@@ -54,7 +54,7 @@ impl DbPool {
             .acquire_owned()
             .await
             .map_err(|_| crate::error::CassetteError::Io(
-                std::io::Error::new(std::io::ErrorKind::Other, "semaphore closed")
+                std::io::Error::other("semaphore closed")
             ))?;
 
         // Try to reuse an existing engine.

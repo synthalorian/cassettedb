@@ -69,7 +69,7 @@ impl TantivySearch {
         tantivy_doc.add_text(self.doc_id_field, &doc.id);
         tantivy_doc.add_text(
             self.data_field,
-            &serde_json::to_string(&doc.data).unwrap_or_default(),
+            serde_json::to_string(&doc.data).unwrap_or_default(),
         );
 
         index_writer

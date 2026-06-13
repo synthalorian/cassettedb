@@ -72,7 +72,7 @@ impl CassetteEngine {
                     usize::from_le_bytes([tp[0], tp[1], tp[2], tp[3], tp[4], tp[5], tp[6], tp[7]]);
                 if len > 0 {
                     let pages_needed =
-                        (len + crate::storage::PAGE_SIZE - 1) / crate::storage::PAGE_SIZE;
+                        len.div_ceil(crate::storage::PAGE_SIZE);
                     let mut payload = Vec::with_capacity(len);
                     for i in 1..=pages_needed {
                         if let Ok(page) = storage.read_page(i as u32) {
@@ -142,7 +142,7 @@ impl CassetteEngine {
             tantivy.index_document(&doc)?;
         }
 
-        Ok(self.docs.keys().last().unwrap().clone())
+        Ok(doc.id.clone())
     }
 
     /// Update an existing document by ID.
@@ -227,7 +227,7 @@ impl CassetteEngine {
     pub fn compact(&mut self) -> Result<()> {
         let payload = serde_json::to_vec(&self.docs)?;
         let pages_needed =
-            (payload.len() + crate::storage::PAGE_SIZE - 1) / crate::storage::PAGE_SIZE;
+            payload.len().div_ceil(crate::storage::PAGE_SIZE);
 
         while (self.storage.header().num_pages as usize) < pages_needed + 1 {
             self.storage.allocate_page()?;

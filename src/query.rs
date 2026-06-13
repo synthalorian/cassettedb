@@ -76,7 +76,16 @@ impl Query {
 
         // search("...")
         if input.starts_with("search(") {
-            let inner = input.strip_prefix("search(").unwrap();
+            let inner = input.strip_prefix("search(").ok_or_else(|| {
+                CassetteError::InvalidQuery(
+                    ParseError {
+                        message: "Invalid search(...) expression".to_string(),
+                        position: Some(0),
+                        context: input.to_string(),
+                    }
+                    .to_string(),
+                )
+            })?;
             let inner = inner.strip_suffix(")").ok_or_else(|| {
                 CassetteError::InvalidQuery(
                     ParseError {
@@ -268,16 +277,16 @@ impl Query {
                 got == Some(value.clone())
             }
             Query::Gt { path, value } => {
-                resolve_number(&doc.data, path).map_or(false, |v| v > *value)
+                resolve_number(&doc.data, path).is_some_and(|v| v > *value)
             }
             Query::Lt { path, value } => {
-                resolve_number(&doc.data, path).map_or(false, |v| v < *value)
+                resolve_number(&doc.data, path).is_some_and(|v| v < *value)
             }
             Query::Gte { path, value } => {
-                resolve_number(&doc.data, path).map_or(false, |v| v >= *value)
+                resolve_number(&doc.data, path).is_some_and(|v| v >= *value)
             }
             Query::Lte { path, value } => {
-                resolve_number(&doc.data, path).map_or(false, |v| v <= *value)
+                resolve_number(&doc.data, path).is_some_and(|v| v <= *value)
             }
             Query::Search(term) => ft_index.search(term).contains(&doc.id),
             Query::And(a, b) => a.matches(doc, ft_index) && b.matches(doc, ft_index),
