@@ -1,7 +1,7 @@
 use cassettedb::document::Document;
 use cassettedb::engine::CassetteEngine;
 use cassettedb::query::Query;
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use serde_json::json;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -15,7 +15,7 @@ fn create_test_db() -> (TempDir, PathBuf, CassetteEngine) {
 
 fn bench_insert(c: &mut Criterion) {
     let mut group = c.benchmark_group("insert");
-    
+
     group.bench_function("insert_single", |b| {
         let (_dir, _path, mut engine) = create_test_db();
         b.iter(|| {
@@ -33,7 +33,7 @@ fn bench_insert(c: &mut Criterion) {
             }
         });
     });
-    
+
     group.bench_function("insert_batch_1000", |b| {
         b.iter(|| {
             let (_dir, _path, mut engine) = create_test_db();
@@ -43,17 +43,19 @@ fn bench_insert(c: &mut Criterion) {
             }
         });
     });
-    
+
     group.finish();
 }
 
 fn bench_query(c: &mut Criterion) {
     let mut group = c.benchmark_group("query");
-    
+
     group.bench_function("query_eq_small", |b| {
         let (_dir, _path, mut engine) = create_test_db();
         for i in 0..100 {
-            engine.insert(Document::new(json!({"age": i % 10, "name": "user"}))).unwrap();
+            engine
+                .insert(Document::new(json!({"age": i % 10, "name": "user"})))
+                .unwrap();
         }
         let q = Query::parse("age == 5").unwrap();
         b.iter(|| {
@@ -64,7 +66,9 @@ fn bench_query(c: &mut Criterion) {
     group.bench_function("query_eq_large", |b| {
         let (_dir, _path, mut engine) = create_test_db();
         for i in 0..10000 {
-            engine.insert(Document::new(json!({"age": i % 100, "name": "user"}))).unwrap();
+            engine
+                .insert(Document::new(json!({"age": i % 100, "name": "user"})))
+                .unwrap();
         }
         let q = Query::parse("age == 50").unwrap();
         b.iter(|| {
@@ -75,7 +79,9 @@ fn bench_query(c: &mut Criterion) {
     group.bench_function("query_range", |b| {
         let (_dir, _path, mut engine) = create_test_db();
         for i in 0..1000 {
-            engine.insert(Document::new(json!({"age": i, "name": "user"}))).unwrap();
+            engine
+                .insert(Document::new(json!({"age": i, "name": "user"})))
+                .unwrap();
         }
         let q = Query::parse("age > 500").unwrap();
         b.iter(|| {
@@ -86,80 +92,90 @@ fn bench_query(c: &mut Criterion) {
     group.bench_function("query_and", |b| {
         let (_dir, _path, mut engine) = create_test_db();
         for i in 0..1000 {
-            engine.insert(Document::new(json!({"age": i % 100, "active": i % 2 == 0}))).unwrap();
+            engine
+                .insert(Document::new(json!({"age": i % 100, "active": i % 2 == 0})))
+                .unwrap();
         }
         let q = Query::parse("age > 50 and active == true").unwrap();
         b.iter(|| {
             black_box(engine.query(&q));
         });
     });
-    
+
     group.bench_function("query_or", |b| {
         let (_dir, _path, mut engine) = create_test_db();
         for i in 0..1000 {
-            engine.insert(Document::new(json!({"age": i % 100, "role": if i % 2 == 0 { "admin" } else { "user" }}))).unwrap();
+            engine
+                .insert(Document::new(
+                    json!({"age": i % 100, "role": if i % 2 == 0 { "admin" } else { "user" }}),
+                ))
+                .unwrap();
         }
         let q = Query::parse("age > 80 or role == \"admin\"").unwrap();
         b.iter(|| {
             black_box(engine.query(&q));
         });
     });
-    
+
     group.finish();
 }
 
 fn bench_search(c: &mut Criterion) {
     let mut group = c.benchmark_group("search");
-    
+
     group.bench_function("search_fulltext_small", |b| {
         let (_dir, _path, mut engine) = create_test_db();
         for i in 0..100 {
-            engine.insert(Document::new(json!({
-                "title": format!("Document number {}", i),
-                "body": "Lorem ipsum dolor sit amet"
-            }))).unwrap();
+            engine
+                .insert(Document::new(json!({
+                    "title": format!("Document number {}", i),
+                    "body": "Lorem ipsum dolor sit amet"
+                })))
+                .unwrap();
         }
         let q = Query::parse("search(\"lorem\")").unwrap();
         b.iter(|| {
             black_box(engine.query(&q));
         });
     });
-    
+
     group.bench_function("search_fulltext_large", |b| {
         let (_dir, _path, mut engine) = create_test_db();
         for i in 0..5000 {
-            engine.insert(Document::new(json!({
-                "title": format!("Document number {}", i),
-                "body": "Lorem ipsum dolor sit amet consectetur adipiscing elit"
-            }))).unwrap();
+            engine
+                .insert(Document::new(json!({
+                    "title": format!("Document number {}", i),
+                    "body": "Lorem ipsum dolor sit amet consectetur adipiscing elit"
+                })))
+                .unwrap();
         }
         let q = Query::parse("search(\"lorem\")").unwrap();
         b.iter(|| {
             black_box(engine.query(&q));
         });
     });
-    
+
     group.finish();
 }
 
 fn bench_update_delete(c: &mut Criterion) {
     let mut group = c.benchmark_group("update_delete");
-    
-        group.bench_function("update_single", |b| {
-            let (_dir, _path, mut engine) = create_test_db();
-            let mut ids = Vec::new();
-            for i in 0..100 {
-                ids.push(engine.insert(Document::new(json!({"value": i}))).unwrap());
-            }
-            let mut i = 0;
-            b.iter(|| {
-                let id = &ids[i % ids.len()];
-                engine.update(id, json!({"value": i})).unwrap();
-                black_box(());
-                i += 1;
-            });
+
+    group.bench_function("update_single", |b| {
+        let (_dir, _path, mut engine) = create_test_db();
+        let mut ids = Vec::new();
+        for i in 0..100 {
+            ids.push(engine.insert(Document::new(json!({"value": i}))).unwrap());
+        }
+        let mut i = 0;
+        b.iter(|| {
+            let id = &ids[i % ids.len()];
+            engine.update(id, json!({"value": i})).unwrap();
+            black_box(());
+            i += 1;
         });
-    
+    });
+
     group.bench_function("delete_single", |b| {
         b.iter_with_setup(
             || {
@@ -178,20 +194,22 @@ fn bench_update_delete(c: &mut Criterion) {
             },
         );
     });
-    
+
     group.finish();
 }
 
 fn bench_compact(c: &mut Criterion) {
     let mut group = c.benchmark_group("compact");
-    
+
     for size in [100, 1000, 5000].iter() {
         group.bench_with_input(BenchmarkId::new("compact_docs", size), size, |b, &size| {
             b.iter_with_setup(
                 || {
                     let (_dir, _path, mut engine) = create_test_db();
                     for i in 0..size {
-                        engine.insert(Document::new(json!({"id": i, "data": "test"}))).unwrap();
+                        engine
+                            .insert(Document::new(json!({"id": i, "data": "test"})))
+                            .unwrap();
                     }
                     engine
                 },
@@ -202,73 +220,86 @@ fn bench_compact(c: &mut Criterion) {
             );
         });
     }
-    
+
     group.finish();
 }
 
 fn bench_raft(c: &mut Criterion) {
     use cassettedb::raft::{create_raft_node, ClusterCommand, RequestVoteResponse};
-    
+
     let mut group = c.benchmark_group("raft");
-    
+
     group.bench_function("raft_election_3_nodes", |b| {
         b.iter(|| {
             let node = create_raft_node("a".to_string(), vec!["b".to_string(), "c".to_string()]);
             let req = node.start_election();
-            black_box(node.record_vote("b".to_string(), RequestVoteResponse {
-                term: req.term,
-                vote_granted: true,
-            }));
+            black_box(node.record_vote(
+                "b".to_string(),
+                RequestVoteResponse {
+                    term: req.term,
+                    vote_granted: true,
+                },
+            ));
         });
     });
-    
+
     group.bench_function("raft_propose_command", |b| {
         let node = create_raft_node("a".to_string(), vec!["b".to_string(), "c".to_string()]);
         node.start_election();
-        node.record_vote("b".to_string(), RequestVoteResponse {
-            term: 1,
-            vote_granted: true,
-        });
+        node.record_vote(
+            "b".to_string(),
+            RequestVoteResponse {
+                term: 1,
+                vote_granted: true,
+            },
+        );
         assert!(node.is_leader());
-        
+
         b.iter(|| {
             black_box(node.propose(ClusterCommand::NoOp).unwrap());
         });
     });
-    
+
     group.bench_function("raft_heartbeat_5_nodes", |b| {
-        let node = create_raft_node("a".to_string(), vec![
-            "b".to_string(), "c".to_string(), "d".to_string(), "e".to_string()
-        ]);
+        let node = create_raft_node(
+            "a".to_string(),
+            vec![
+                "b".to_string(),
+                "c".to_string(),
+                "d".to_string(),
+                "e".to_string(),
+            ],
+        );
         node.start_election();
-        node.record_vote("b".to_string(), RequestVoteResponse {
-            term: 1,
-            vote_granted: true,
-        });
+        node.record_vote(
+            "b".to_string(),
+            RequestVoteResponse {
+                term: 1,
+                vote_granted: true,
+            },
+        );
         assert!(node.is_leader());
-        
+
         b.iter(|| {
             for peer in &["b", "c", "d", "e"] {
                 black_box(node.heartbeat_for(&peer.to_string()));
             }
         });
     });
-    
+
     group.finish();
 }
 
 fn bench_shard(c: &mut Criterion) {
     use cassettedb::shard::ShardRouter;
     use serde_json::json;
-    
+
     let mut group = c.benchmark_group("shard");
-    
+
     group.bench_function("shard_insert_2_shards", |b| {
         let dir = TempDir::new().unwrap();
-        let mut router = ShardRouter::with_shards(
-            vec!["s0".to_string(), "s1".to_string()],
-            dir.path(),
-        ).unwrap();
+        let mut router =
+            ShardRouter::with_shards(vec!["s0".to_string(), "s1".to_string()], dir.path()).unwrap();
         let mut i = 0;
         b.iter(|| {
             let doc = Document::new(json!({"id": i, "data": "test"}));
@@ -276,13 +307,19 @@ fn bench_shard(c: &mut Criterion) {
             i += 1;
         });
     });
-    
+
     group.bench_function("shard_query_4_shards", |b| {
         let dir = TempDir::new().unwrap();
         let mut router = ShardRouter::with_shards(
-            vec!["s0".to_string(), "s1".to_string(), "s2".to_string(), "s3".to_string()],
+            vec![
+                "s0".to_string(),
+                "s1".to_string(),
+                "s2".to_string(),
+                "s3".to_string(),
+            ],
             dir.path(),
-        ).unwrap();
+        )
+        .unwrap();
         for i in 0..1000 {
             let doc = Document::new(json!({"age": i % 100, "name": "user"}));
             router.insert(doc).unwrap();
@@ -292,7 +329,7 @@ fn bench_shard(c: &mut Criterion) {
             black_box(router.query_all(&q));
         });
     });
-    
+
     group.bench_function("shard_hash_distribution", |b| {
         b.iter(|| {
             for i in 0..100 {
@@ -300,24 +337,27 @@ fn bench_shard(c: &mut Criterion) {
             }
         });
     });
-    
+
     group.finish();
 }
 
 fn bench_dist_tx(c: &mut Criterion) {
-    use cassettedb::dist_tx::{TwoPhaseCoordinator, ParticipantVote, PrepareResponse};
-    
+    use cassettedb::dist_tx::{ParticipantVote, PrepareResponse, TwoPhaseCoordinator};
+
     let mut group = c.benchmark_group("dist_tx");
-    
+
     group.bench_function("dist_tx_begin", |b| {
         let coord = TwoPhaseCoordinator::new("coord".to_string());
         let mut i = 0;
         b.iter(|| {
-            black_box(coord.begin(format!("tx-{}", i), vec!["p1".to_string(), "p2".to_string()]));
+            black_box(coord.begin(
+                format!("tx-{}", i),
+                vec!["p1".to_string(), "p2".to_string()],
+            ));
             i += 1;
         });
     });
-    
+
     group.bench_function("dist_tx_full_2pc", |b| {
         let coord = TwoPhaseCoordinator::new("coord".to_string());
         let mut i = 0;
@@ -342,7 +382,7 @@ fn bench_dist_tx(c: &mut Criterion) {
             i += 1;
         });
     });
-    
+
     group.finish();
 }
 

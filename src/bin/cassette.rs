@@ -357,166 +357,158 @@ fn main() -> Result<()> {
                 for change in changes {
                     println!(
                         "seq={}  op={:?}  doc_id={}  ts={}",
-                        change.sequence,
-                        change.op,
-                        change.doc_id,
-                        change.timestamp
+                        change.sequence, change.op, change.doc_id, change.timestamp
                     );
                 }
             }
         }
-        Commands::Cluster { command } => {
-            match command {
-                ClusterCommands::Init {
+        Commands::Cluster { command } => match command {
+            ClusterCommands::Init {
+                cluster_id,
+                node_id,
+                address,
+                config_dir,
+            } => {
+                std::fs::create_dir_all(&config_dir)?;
+                let manager = cassettedb::cluster::ClusterManager::init(
                     cluster_id,
                     node_id,
                     address,
-                    config_dir,
-                } => {
-                    std::fs::create_dir_all(&config_dir)?;
-                    let manager = cassettedb::cluster::ClusterManager::init(
-                        cluster_id,
-                        node_id,
-                        address,
-                        &config_dir,
-                    )?;
-                    let status = manager.status();
-                    println!("Initialized cluster {}", status.cluster_id);
-                    println!("Local node: {}", status.local_id);
-                }
-                ClusterCommands::Join {
+                    &config_dir,
+                )?;
+                let status = manager.status();
+                println!("Initialized cluster {}", status.cluster_id);
+                println!("Local node: {}", status.local_id);
+            }
+            ClusterCommands::Join {
+                node_id,
+                address,
+                config_dir,
+                cluster_config,
+            } => {
+                std::fs::create_dir_all(&config_dir)?;
+                let bytes = std::fs::read(&cluster_config)?;
+                let config: cassettedb::cluster::ClusterConfig = serde_json::from_slice(&bytes)?;
+                let manager = cassettedb::cluster::ClusterManager::join(
                     node_id,
                     address,
-                    config_dir,
-                    cluster_config,
-                } => {
-                    std::fs::create_dir_all(&config_dir)?;
-                    let bytes = std::fs::read(&cluster_config)?;
-                    let config: cassettedb::cluster::ClusterConfig = serde_json::from_slice(&bytes)?;
-                    let manager = cassettedb::cluster::ClusterManager::join(
-                        node_id,
-                        address,
-                        &config_dir,
-                        config,
-                    )?;
-                    let status = manager.status();
-                    println!("Joined cluster {}", status.cluster_id);
-                    println!("Local node: {}", status.local_id);
+                    &config_dir,
+                    config,
+                )?;
+                let status = manager.status();
+                println!("Joined cluster {}", status.cluster_id);
+                println!("Local node: {}", status.local_id);
+            }
+            ClusterCommands::Leave { config_dir } => {
+                let path = config_dir.join("cluster.json");
+                if path.exists() {
+                    std::fs::remove_file(&path)?;
                 }
-                ClusterCommands::Leave { config_dir } => {
-                    let path = config_dir.join("cluster.json");
-                    if path.exists() {
-                        std::fs::remove_file(&path)?;
-                    }
-                    println!("Left cluster (local config removed)");
-                }
-                ClusterCommands::Status { config_dir } => {
-                    let manager = cassettedb::cluster::ClusterManager::load(
-                        "unknown".to_string(),
-                        &config_dir,
-                    )?;
-                    let status = manager.status();
-                    println!("{}", serde_json::to_string_pretty(&status)?);
-                }
-                ClusterCommands::AddNode {
-                    config_dir,
-                    node_id,
+                println!("Left cluster (local config removed)");
+            }
+            ClusterCommands::Status { config_dir } => {
+                let manager =
+                    cassettedb::cluster::ClusterManager::load("unknown".to_string(), &config_dir)?;
+                let status = manager.status();
+                println!("{}", serde_json::to_string_pretty(&status)?);
+            }
+            ClusterCommands::AddNode {
+                config_dir,
+                node_id,
+                address,
+                role,
+            } => {
+                let manager =
+                    cassettedb::cluster::ClusterManager::load("unknown".to_string(), &config_dir)?;
+                let node_role = match role.as_str() {
+                    "primary" => cassettedb::cluster::NodeRole::Primary,
+                    "observer" => cassettedb::cluster::NodeRole::Observer,
+                    _ => cassettedb::cluster::NodeRole::Secondary,
+                };
+                manager.add_node(cassettedb::cluster::NodeInfo {
+                    id: node_id.clone(),
                     address,
-                    role,
-                } => {
-                    let manager =
-                        cassettedb::cluster::ClusterManager::load("unknown".to_string(), &config_dir)?;
-                    let node_role = match role.as_str() {
-                        "primary" => cassettedb::cluster::NodeRole::Primary,
-                        "observer" => cassettedb::cluster::NodeRole::Observer,
-                        _ => cassettedb::cluster::NodeRole::Secondary,
-                    };
-                    manager.add_node(cassettedb::cluster::NodeInfo {
-                        id: node_id.clone(),
-                        address,
-                        role: node_role,
-                        last_seen: chrono::Utc::now().timestamp(),
-                    })?;
-                    println!("Added node {}", node_id);
-                }
-                ClusterCommands::RemoveNode { config_dir, node_id } => {
-                    let manager =
-                        cassettedb::cluster::ClusterManager::load("unknown".to_string(), &config_dir)?;
-                    manager.remove_node(&node_id)?;
-                    println!("Removed node {}", node_id);
-                }
-                ClusterCommands::Failover {
-                    config_dir,
-                    failed_node,
-                } => {
-                    let manager =
-                        cassettedb::cluster::ClusterManager::load("unknown".to_string(), &config_dir)?;
-                    manager.failover(&failed_node)?;
-                    println!("Failover to local node triggered (failed node: {})", failed_node);
-                }
-                ClusterCommands::Shards { config_dir } => {
-                    let manager =
-                        cassettedb::cluster::ClusterManager::load("unknown".to_string(), &config_dir)?;
-                    let cfg = manager.node().config();
-                    let nodes: Vec<String> = cfg
-                        .nodes
-                        .iter()
-                        .map(|n| n.id.clone())
-                        .collect();
-                    let map = cassettedb::shard::ShardAllocator::allocate(16, &nodes);
-                    println!("{}", serde_json::to_string_pretty(&map)?);
-                }
-                ClusterCommands::Rebalance {
-                    config_dir,
-                    num_shards,
-                } => {
-                    let manager =
-                        cassettedb::cluster::ClusterManager::load("unknown".to_string(), &config_dir)?;
-                    let cfg = manager.node().config();
-                    let nodes: Vec<String> = cfg
-                        .nodes
-                        .iter()
-                        .map(|n| n.id.clone())
-                        .collect();
-                    let map = cassettedb::shard::ShardAllocator::allocate(num_shards, &nodes);
-                    println!("Rebalanced shard map:");
-                    println!("{}", serde_json::to_string_pretty(&map)?);
-                }
+                    role: node_role,
+                    last_seen: chrono::Utc::now().timestamp(),
+                })?;
+                println!("Added node {}", node_id);
             }
-        }
-        Commands::DistTx { command } => {
-            match command {
-                DistTxCommands::Begin { tx_id, participants } => {
-                    let parts: Vec<String> = participants
-                        .split(',')
-                        .map(|s| s.trim().to_string())
-                        .filter(|s| !s.is_empty())
-                        .collect();
-                    let coord =
-                        cassettedb::dist_tx::TwoPhaseCoordinator::new("cli".to_string());
-                    let tx = coord.begin(tx_id.clone(), parts);
-                    println!("Started transaction {}", tx.tx_id);
-                    println!("Phase: {:?}", tx.phase);
-                }
-                DistTxCommands::Commit { tx_id } => {
-                    let coord =
-                        cassettedb::dist_tx::TwoPhaseCoordinator::new("cli".to_string());
-                    coord.commit(&tx_id)?;
-                    println!("Committed transaction {}", tx_id);
-                }
-                DistTxCommands::Abort { tx_id } => {
-                    let coord =
-                        cassettedb::dist_tx::TwoPhaseCoordinator::new("cli".to_string());
-                    coord.abort(&tx_id)?;
-                    println!("Aborted transaction {}", tx_id);
-                }
+            ClusterCommands::RemoveNode {
+                config_dir,
+                node_id,
+            } => {
+                let manager =
+                    cassettedb::cluster::ClusterManager::load("unknown".to_string(), &config_dir)?;
+                manager.remove_node(&node_id)?;
+                println!("Removed node {}", node_id);
             }
-        }
+            ClusterCommands::Failover {
+                config_dir,
+                failed_node,
+            } => {
+                let manager =
+                    cassettedb::cluster::ClusterManager::load("unknown".to_string(), &config_dir)?;
+                manager.failover(&failed_node)?;
+                println!(
+                    "Failover to local node triggered (failed node: {})",
+                    failed_node
+                );
+            }
+            ClusterCommands::Shards { config_dir } => {
+                let manager =
+                    cassettedb::cluster::ClusterManager::load("unknown".to_string(), &config_dir)?;
+                let cfg = manager.node().config();
+                let nodes: Vec<String> = cfg.nodes.iter().map(|n| n.id.clone()).collect();
+                let map = cassettedb::shard::ShardAllocator::allocate(16, &nodes);
+                println!("{}", serde_json::to_string_pretty(&map)?);
+            }
+            ClusterCommands::Rebalance {
+                config_dir,
+                num_shards,
+            } => {
+                let manager =
+                    cassettedb::cluster::ClusterManager::load("unknown".to_string(), &config_dir)?;
+                let cfg = manager.node().config();
+                let nodes: Vec<String> = cfg.nodes.iter().map(|n| n.id.clone()).collect();
+                let map = cassettedb::shard::ShardAllocator::allocate(num_shards, &nodes);
+                println!("Rebalanced shard map:");
+                println!("{}", serde_json::to_string_pretty(&map)?);
+            }
+        },
+        Commands::DistTx { command } => match command {
+            DistTxCommands::Begin {
+                tx_id,
+                participants,
+            } => {
+                let parts: Vec<String> = participants
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                let coord = cassettedb::dist_tx::TwoPhaseCoordinator::new("cli".to_string());
+                let tx = coord.begin(tx_id.clone(), parts);
+                println!("Started transaction {}", tx.tx_id);
+                println!("Phase: {:?}", tx.phase);
+            }
+            DistTxCommands::Commit { tx_id } => {
+                let coord = cassettedb::dist_tx::TwoPhaseCoordinator::new("cli".to_string());
+                coord.commit(&tx_id)?;
+                println!("Committed transaction {}", tx_id);
+            }
+            DistTxCommands::Abort { tx_id } => {
+                let coord = cassettedb::dist_tx::TwoPhaseCoordinator::new("cli".to_string());
+                coord.abort(&tx_id)?;
+                println!("Aborted transaction {}", tx_id);
+            }
+        },
         Commands::MigrateConfig { config_dir } => {
             let migrator = cassettedb::ConfigMigrator::new();
             let migrated = migrator.migrate_directory(&config_dir)?;
             if migrated.is_empty() {
-                println!("No configuration files needed migration in {}", config_dir.display());
+                println!(
+                    "No configuration files needed migration in {}",
+                    config_dir.display()
+                );
             } else {
                 println!("Migrated {} configuration file(s):", migrated.len());
                 for path in migrated {
@@ -566,7 +558,9 @@ fn main() -> Result<()> {
                     let tcp_auth = auth.clone();
                     let tcp_addr_clone = tcp_addr.clone();
                     tokio::spawn(async move {
-                        if let Err(e) = cassettedb::run_tcp_server(tcp_pool, tcp_auth, &tcp_addr_clone).await {
+                        if let Err(e) =
+                            cassettedb::run_tcp_server(tcp_pool, tcp_auth, &tcp_addr_clone).await
+                        {
                             eprintln!("TCP server error: {}", e);
                         }
                     });

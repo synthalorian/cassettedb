@@ -4,12 +4,12 @@
 //! and stores them locally.  In a production system this could upload
 //! to a telemetry endpoint; for now we append to a local JSONL file.
 
+use anyhow::{Context, Result};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
-use anyhow::{Context, Result};
 
 /// Categories of user feedback.
 #[derive(Debug, Clone, Serialize, Deserialize)]

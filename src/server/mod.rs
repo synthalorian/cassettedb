@@ -13,7 +13,7 @@ pub use auth::{AuthManager, Authenticator};
 pub use http::HttpServer;
 pub use multidb::MultiDbManager;
 pub use pool::{ConnectionPool, PooledConnection};
-pub use tcp::{TcpServer, run_tcp_server};
+pub use tcp::{run_tcp_server, TcpServer};
 
 use serde::{Deserialize, Serialize};
 

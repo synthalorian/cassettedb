@@ -75,10 +75,17 @@ impl Cassette {
             wal.replay(|entry| {
                 use crate::wal::WalEntry;
                 match entry {
-                    WalEntry::Insert { collection, doc, .. } => {
+                    WalEntry::Insert {
+                        collection, doc, ..
+                    } => {
                         let _ = cassette.insert(collection, doc.clone());
                     }
-                    WalEntry::Update { collection, id, doc, .. } => {
+                    WalEntry::Update {
+                        collection,
+                        id,
+                        doc,
+                        ..
+                    } => {
                         let _ = cassette.update(collection, id, doc.clone());
                     }
                     WalEntry::Delete { collection, id, .. } => {
@@ -239,14 +246,9 @@ impl Cassette {
                         .filter(|t| !t.is_empty())
                         .map(|t| t.to_lowercase())
                         .collect();
-                    let field_index = inverted_index
-                        .entry(field.clone())
-                        .or_default();
+                    let field_index = inverted_index.entry(field.clone()).or_default();
                     for token in tokens {
-                        field_index
-                            .entry(token)
-                            .or_default()
-                            .push(doc.id.clone());
+                        field_index.entry(token).or_default().push(doc.id.clone());
                     }
                 }
             }
@@ -362,7 +364,9 @@ impl Cassette {
                             continue;
                         }
                         for id in ids {
-                            if let Some(doc) = coll.documents.iter().find(|d| d.id == *id && !d.deleted) {
+                            if let Some(doc) =
+                                coll.documents.iter().find(|d| d.id == *id && !d.deleted)
+                            {
                                 if Self::value_to_index_key(&doc.data[field]).as_str() > value {
                                     results.push(doc);
                                 }
@@ -373,7 +377,9 @@ impl Cassette {
                 "<" => {
                     for (_, ids) in index.range(..value.to_string()) {
                         for id in ids {
-                            if let Some(doc) = coll.documents.iter().find(|d| d.id == *id && !d.deleted) {
+                            if let Some(doc) =
+                                coll.documents.iter().find(|d| d.id == *id && !d.deleted)
+                            {
                                 results.push(doc);
                             }
                         }
@@ -382,7 +388,9 @@ impl Cassette {
                 ">=" => {
                     for (_, ids) in index.range(value.to_string()..) {
                         for id in ids {
-                            if let Some(doc) = coll.documents.iter().find(|d| d.id == *id && !d.deleted) {
+                            if let Some(doc) =
+                                coll.documents.iter().find(|d| d.id == *id && !d.deleted)
+                            {
                                 results.push(doc);
                             }
                         }
@@ -391,7 +399,9 @@ impl Cassette {
                 "<=" => {
                     for (_, ids) in index.range(..=value.to_string()) {
                         for id in ids {
-                            if let Some(doc) = coll.documents.iter().find(|d| d.id == *id && !d.deleted) {
+                            if let Some(doc) =
+                                coll.documents.iter().find(|d| d.id == *id && !d.deleted)
+                            {
                                 results.push(doc);
                             }
                         }
@@ -405,20 +415,18 @@ impl Cassette {
                 .documents
                 .iter()
                 .filter(|d| !d.deleted)
-                .filter(|d| {
-                    match d.data.get(field) {
-                        Some(v) => {
-                            let key = Self::value_to_index_key(v);
-                            match op {
-                                ">" => key.as_str() > value,
-                                "<" => key.as_str() < value,
-                                ">=" => key.as_str() >= value,
-                                "<=" => key.as_str() <= value,
-                                _ => false,
-                            }
+                .filter(|d| match d.data.get(field) {
+                    Some(v) => {
+                        let key = Self::value_to_index_key(v);
+                        match op {
+                            ">" => key.as_str() > value,
+                            "<" => key.as_str() < value,
+                            ">=" => key.as_str() >= value,
+                            "<=" => key.as_str() <= value,
+                            _ => false,
                         }
-                        None => false,
                     }
+                    None => false,
                 })
                 .collect();
         }
@@ -437,19 +445,19 @@ impl Cassette {
             .documents
             .iter()
             .filter(|d| !d.deleted)
-            .filter(|d| {
-                match d.data.clone().path(path) {
-                    Ok(results) => !results.is_null() && results.as_array().map_or(true, |a| !a.is_empty()),
-                    Err(_) => false,
+            .filter(|d| match d.data.clone().path(path) {
+                Ok(results) => {
+                    !results.is_null() && results.as_array().map_or(true, |a| !a.is_empty())
                 }
+                Err(_) => false,
             })
             .collect())
     }
 
     pub fn get(&self, collection: &str, id: &str) -> Option<&Document> {
-        self.collections.get(collection).and_then(|coll| {
-            coll.documents.iter().find(|d| d.id == id && !d.deleted)
-        })
+        self.collections
+            .get(collection)
+            .and_then(|coll| coll.documents.iter().find(|d| d.id == id && !d.deleted))
     }
 
     /// Scan all documents in a collection (no filter)

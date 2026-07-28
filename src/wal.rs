@@ -32,12 +32,31 @@ pub struct WalRecord {
 /// WAL entry for transaction-based logging.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum WalEntry {
-    Begin { tx_id: u64 },
-    Insert { tx_id: u64, collection: String, doc: serde_json::Value },
-    Update { tx_id: u64, collection: String, id: String, doc: serde_json::Value },
-    Delete { tx_id: u64, collection: String, id: String },
-    Commit { tx_id: u64 },
-    Abort { tx_id: u64 },
+    Begin {
+        tx_id: u64,
+    },
+    Insert {
+        tx_id: u64,
+        collection: String,
+        doc: serde_json::Value,
+    },
+    Update {
+        tx_id: u64,
+        collection: String,
+        id: String,
+        doc: serde_json::Value,
+    },
+    Delete {
+        tx_id: u64,
+        collection: String,
+        id: String,
+    },
+    Commit {
+        tx_id: u64,
+    },
+    Abort {
+        tx_id: u64,
+    },
 }
 
 /// WAL file header.
@@ -160,19 +179,13 @@ impl Wal {
                 Err(e) => return Err(e.into()),
             };
 
-            let id_len = match reader.read_u32::<LittleEndian>() {
-                Ok(v) => v as usize,
-                Err(e) => return Err(e.into()),
-            };
+            let id_len = reader.read_u32::<LittleEndian>()? as usize;
             let mut id_buf = vec![0u8; id_len];
             if let Err(e) = reader.read_exact(&mut id_buf) {
                 return Err(e.into());
             }
 
-            let payload_len = match reader.read_u32::<LittleEndian>() {
-                Ok(v) => v as usize,
-                Err(e) => return Err(e.into()),
-            };
+            let payload_len = reader.read_u32::<LittleEndian>()? as usize;
             let mut payload = vec![0u8; payload_len];
             if let Err(e) = reader.read_exact(&mut payload) {
                 return Err(e.into());

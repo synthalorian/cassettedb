@@ -16,11 +16,11 @@
 //! - The error message string must also be freed with `cassette_free_string`.
 
 use std::cell::RefCell;
-use std::ffi::{CStr, CString, c_char, c_int};
+use std::ffi::{c_char, c_int, CStr, CString};
 use std::path::Path;
 
-use cassettedb::engine::CassetteEngine;
 use cassettedb::document::Document;
+use cassettedb::engine::CassetteEngine;
 use cassettedb::query::Query;
 
 /// Opaque handle to a CassetteDB database instance.
@@ -327,10 +327,7 @@ pub unsafe extern "C" fn cassette_delete(db: *mut CassetteDB, id: *const c_char)
 /// * `db` and `query` must be valid, non-null pointers.
 /// * The returned string must be freed with `cassette_free_string`.
 #[no_mangle]
-pub unsafe extern "C" fn cassette_query(
-    db: *mut CassetteDB,
-    query: *const c_char,
-) -> *mut c_char {
+pub unsafe extern "C" fn cassette_query(db: *mut CassetteDB, query: *const c_char) -> *mut c_char {
     clear_error();
     if db.is_null() {
         set_error("Null database pointer".to_string());

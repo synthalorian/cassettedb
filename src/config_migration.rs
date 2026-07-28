@@ -3,11 +3,11 @@
 //! Manages versioning and automatic migration of configuration files
 //! (e.g. cluster.json, node settings) between releases.
 
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use anyhow::{Context, Result};
 
 /// Current config format version.
 pub const CURRENT_CONFIG_VERSION: u32 = 1;

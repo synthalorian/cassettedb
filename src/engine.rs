@@ -71,8 +71,7 @@ impl CassetteEngine {
                 let len =
                     usize::from_le_bytes([tp[0], tp[1], tp[2], tp[3], tp[4], tp[5], tp[6], tp[7]]);
                 if len > 0 {
-                    let pages_needed =
-                        len.div_ceil(crate::storage::PAGE_SIZE);
+                    let pages_needed = len.div_ceil(crate::storage::PAGE_SIZE);
                     let mut payload = Vec::with_capacity(len);
                     for i in 1..=pages_needed {
                         if let Ok(page) = storage.read_page(i as u32) {
@@ -226,8 +225,7 @@ impl CassetteEngine {
     /// then truncate the WAL.
     pub fn compact(&mut self) -> Result<()> {
         let payload = serde_json::to_vec(&self.docs)?;
-        let pages_needed =
-            payload.len().div_ceil(crate::storage::PAGE_SIZE);
+        let pages_needed = payload.len().div_ceil(crate::storage::PAGE_SIZE);
 
         while (self.storage.header().num_pages as usize) < pages_needed + 1 {
             self.storage.allocate_page()?;
@@ -272,7 +270,11 @@ impl CassetteEngine {
 
     /// Advanced search via Tantivy (requires `tantivy-search` feature).
     #[cfg(feature = "tantivy-search")]
-    pub fn tantivy_search(&self, query: &str, limit: usize) -> Result<Vec<crate::search::SearchResult>> {
+    pub fn tantivy_search(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<crate::search::SearchResult>> {
         match &self.tantivy {
             Some(t) => t.search(query, limit),
             None => Err(crate::error::CassetteError::Index(

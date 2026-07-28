@@ -5,6 +5,30 @@ All notable changes to CassetteDB are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-06-10
+
+First stable release. Public API frozen as of the 0.9.0 release candidate.
+
+### Added
+
+- **CLI + interactive REPL** (`src/cli.rs`, `src/repl.rs`) for database ops without writing code.
+- **Transactions** (`src/transaction.rs`) with WAL-backed commit/rollback.
+- **Sync + metrics** (`src/sync.rs`, `src/metrics.rs`).
+- **Fuzz target** (`fuzz/targets/fuzz_storage.rs`) and **criterion benchmarks** including a SQLite comparison (`benches/`).
+- Go/Node.js/Python bindings finalized against `libcassettedb` (C FFI, 11 exports).
+- Release workflow, announcement, Apache-2.0 license.
+
+### Fixed (post-tag verification, 2026-07-28)
+
+- Cargo.toml version now matches the release (was stale at 0.7.0).
+- Clippy: collapsed manual `?` in WAL recovery reads.
+- Repository hygiene: untracked `example.wal`; `*.wal`/`*.cassette` gitignored.
+
+### Notes
+
+- The original v1.0.0 git tag pointed at the v0.9.0 RC commit by mistake;
+  it has been re-pointed at the true release state.
+
 ## [0.9.0] - 2025-06-08
 
 ### Release Candidate

@@ -90,7 +90,11 @@ impl TcpServer {
 }
 
 /// Helper function to run TCP server.
-pub async fn run_tcp_server(pool: Arc<ConnectionPool>, auth: Arc<AuthManager>, bind_addr: &str) -> Result<()> {
+pub async fn run_tcp_server(
+    pool: Arc<ConnectionPool>,
+    auth: Arc<AuthManager>,
+    bind_addr: &str,
+) -> Result<()> {
     let server = TcpServer::new(pool, auth);
     server.run(bind_addr).await
 }
@@ -114,9 +118,10 @@ async fn handle_client(
         let len = u32::from_be_bytes(len_buf) as usize;
         if len > 10_000_000 {
             // 10MB max request size.
-            return Err(crate::error::CassetteError::Io(
-                std::io::Error::new(std::io::ErrorKind::InvalidData, "request too large")
-            ));
+            return Err(crate::error::CassetteError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "request too large",
+            )));
         }
 
         let mut payload = vec![0u8; len];
@@ -244,7 +249,10 @@ async fn execute_command(cmd: TcpCommand, pool: &ConnectionPool) -> Result<Value
 }
 
 /// Send a JSON response with a 4-byte length prefix.
-async fn send_response<T: Serialize>(stream: &mut TcpStream, resp: &ServerResponse<T>) -> Result<()> {
+async fn send_response<T: Serialize>(
+    stream: &mut TcpStream,
+    resp: &ServerResponse<T>,
+) -> Result<()> {
     let payload = serde_json::to_vec(resp)?;
     let len = payload.len() as u32;
     stream.write_all(&len.to_be_bytes()).await?;

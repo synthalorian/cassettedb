@@ -44,7 +44,8 @@ impl ShardMap {
 
     /// Add a shard and optionally assign it to a node.
     pub fn add_shard(&mut self, shard_id: ShardId, node_id: Option<String>) {
-        self.shard_to_node.insert(shard_id, node_id.unwrap_or_default());
+        self.shard_to_node
+            .insert(shard_id, node_id.unwrap_or_default());
     }
 
     /// Remove a shard.
@@ -284,7 +285,11 @@ impl ShardAllocator {
     }
 
     /// Reassign shards from a failed node to healthy nodes.
-    pub fn reassign_failed_node(shard_map: &mut ShardMap, failed_node: &str, healthy_nodes: &[String]) {
+    pub fn reassign_failed_node(
+        shard_map: &mut ShardMap,
+        failed_node: &str,
+        healthy_nodes: &[String],
+    ) {
         if healthy_nodes.is_empty() {
             return;
         }
@@ -332,11 +337,8 @@ mod tests {
     #[test]
     fn test_router_crud() {
         let dir = TempDir::new().unwrap();
-        let mut router = ShardRouter::with_shards(
-            vec!["s0".to_string(), "s1".to_string()],
-            dir.path(),
-        )
-        .unwrap();
+        let mut router =
+            ShardRouter::with_shards(vec!["s0".to_string(), "s1".to_string()], dir.path()).unwrap();
 
         let doc = Document::new(json!({"hello": "world"}));
         let id = router.insert(doc.clone()).unwrap();
