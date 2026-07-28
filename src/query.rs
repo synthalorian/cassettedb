@@ -89,7 +89,8 @@ impl Query {
             let inner = inner.strip_suffix(")").ok_or_else(|| {
                 CassetteError::InvalidQuery(
                     ParseError {
-                        message: "Unclosed search(...) expression — missing closing ')'".to_string(),
+                        message: "Unclosed search(...) expression — missing closing ')'"
+                            .to_string(),
                         position: Some(input.len() - 1),
                         context: input.to_string(),
                     }
@@ -182,10 +183,7 @@ impl Query {
                 if left.is_empty() {
                     return Err(CassetteError::InvalidQuery(
                         ParseError {
-                            message: format!(
-                                "Missing left-hand side of '{}' comparison",
-                                op
-                            ),
+                            message: format!("Missing left-hand side of '{}' comparison", op),
                             position: Some(pos),
                             context: input.to_string(),
                         }
@@ -195,10 +193,7 @@ impl Query {
                 if right.is_empty() {
                     return Err(CassetteError::InvalidQuery(
                         ParseError {
-                            message: format!(
-                                "Missing right-hand side of '{}' comparison",
-                                op
-                            ),
+                            message: format!("Missing right-hand side of '{}' comparison", op),
                             position: Some(pos + op.len()),
                             context: input.to_string(),
                         }
@@ -236,10 +231,7 @@ impl Query {
 
         Err(CassetteError::InvalidQuery(
             ParseError {
-                message: format!(
-                    "Unable to parse query: '{}'",
-                    input
-                ),
+                message: format!("Unable to parse query: '{}'", input),
                 position: Some(0),
                 context: if input.len() > 40 {
                     format!("{}...", &input[..40])
@@ -385,19 +377,39 @@ mod tests {
     #[test]
     fn test_parse_error_messages() {
         let err = Query::parse("").unwrap_err().to_string();
-        assert!(err.contains("Empty query string"), "Expected 'Empty query string' in: {}", err);
+        assert!(
+            err.contains("Empty query string"),
+            "Expected 'Empty query string' in: {}",
+            err
+        );
 
         let err = Query::parse("search(").unwrap_err().to_string();
-        assert!(err.contains("Unclosed search(...)"), "Expected 'Unclosed search(...)' in: {}", err);
+        assert!(
+            err.contains("Unclosed search(...)"),
+            "Expected 'Unclosed search(...)' in: {}",
+            err
+        );
 
         let err = Query::parse("and foo").unwrap_err().to_string();
-        assert!(err.contains("Unable to parse query"), "Expected 'Unable to parse query' in: {}", err);
+        assert!(
+            err.contains("Unable to parse query"),
+            "Expected 'Unable to parse query' in: {}",
+            err
+        );
 
         let err = Query::parse("age > ").unwrap_err().to_string();
-        assert!(err.contains("Missing right-hand side"), "Expected 'Missing right-hand side' in: {}", err);
+        assert!(
+            err.contains("Missing right-hand side"),
+            "Expected 'Missing right-hand side' in: {}",
+            err
+        );
 
         let err = Query::parse("age > abc").unwrap_err().to_string();
-        assert!(err.contains("Expected numeric value"), "Expected 'Expected numeric value' in: {}", err);
+        assert!(
+            err.contains("Expected numeric value"),
+            "Expected 'Expected numeric value' in: {}",
+            err
+        );
     }
 
     #[test]

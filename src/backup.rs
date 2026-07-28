@@ -176,7 +176,10 @@ mod tests {
         // Restore to a new location.
         let restored_path = dir.path().join("restored.cassette");
         restore_snapshot(&snapshot_dir, &meta.id, &restored_path).unwrap();
-        assert_eq!(fs::read_to_string(&restored_path).unwrap(), "dummy db content");
+        assert_eq!(
+            fs::read_to_string(&restored_path).unwrap(),
+            "dummy db content"
+        );
     }
 
     #[test]

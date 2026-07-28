@@ -100,8 +100,14 @@ mod tests {
 
     #[test]
     fn test_extract_token() {
-        assert_eq!(AuthManager::extract_token("Bearer secret123"), Some("secret123"));
-        assert_eq!(AuthManager::extract_token("bearer secret123"), Some("secret123"));
+        assert_eq!(
+            AuthManager::extract_token("Bearer secret123"),
+            Some("secret123")
+        );
+        assert_eq!(
+            AuthManager::extract_token("bearer secret123"),
+            Some("secret123")
+        );
         assert_eq!(AuthManager::extract_token("secret123"), None);
     }
 }

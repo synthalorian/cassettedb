@@ -45,12 +45,18 @@ impl Header {
 
     pub fn encode(&self) -> Vec<u8> {
         let mut buf = Vec::with_capacity(64);
-        buf.write_all(&self.magic).expect("writing to Vec<u8> is infallible");
-        buf.write_u16::<LittleEndian>(self.version).expect("writing to Vec<u8> is infallible");
-        buf.write_u16::<LittleEndian>(self.page_size).expect("writing to Vec<u8> is infallible");
-        buf.write_u32::<LittleEndian>(self.num_pages).expect("writing to Vec<u8> is infallible");
-        buf.write_u32::<LittleEndian>(self.free_list_head).expect("writing to Vec<u8> is infallible");
-        buf.write_u32::<LittleEndian>(self.doc_count).expect("writing to Vec<u8> is infallible");
+        buf.write_all(&self.magic)
+            .expect("writing to Vec<u8> is infallible");
+        buf.write_u16::<LittleEndian>(self.version)
+            .expect("writing to Vec<u8> is infallible");
+        buf.write_u16::<LittleEndian>(self.page_size)
+            .expect("writing to Vec<u8> is infallible");
+        buf.write_u32::<LittleEndian>(self.num_pages)
+            .expect("writing to Vec<u8> is infallible");
+        buf.write_u32::<LittleEndian>(self.free_list_head)
+            .expect("writing to Vec<u8> is infallible");
+        buf.write_u32::<LittleEndian>(self.doc_count)
+            .expect("writing to Vec<u8> is infallible");
         buf.resize(PAGE_SIZE, 0);
         buf
     }

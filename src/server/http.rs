@@ -99,9 +99,10 @@ async fn parse_http_request(stream: &mut TcpStream) -> Result<Option<HttpRequest
 
     // Parse request line.
     let request_line = lines.next().ok_or_else(|| {
-        crate::error::CassetteError::Io(
-            std::io::Error::new(std::io::ErrorKind::InvalidData, "missing request line")
-        )
+        crate::error::CassetteError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "missing request line",
+        ))
     })?;
     let parts: Vec<&str> = request_line.split_whitespace().collect();
     if parts.len() < 2 {
@@ -124,7 +125,8 @@ async fn parse_http_request(stream: &mut TcpStream) -> Result<Option<HttpRequest
     }
 
     // Extract body (everything after the blank line).
-    let body_start = request_str.find("\r\n\r\n")
+    let body_start = request_str
+        .find("\r\n\r\n")
         .or_else(|| request_str.find("\n\n"))
         .unwrap_or(request_str.len());
     let body = buf[body_start..n].to_vec();
@@ -329,7 +331,10 @@ async fn route_request(req: &HttpRequest, pool: &ConnectionPool) -> Result<(u16,
         }
     }
 
-    Ok((404, Value::String(format!("Not found: {} {}", method, path))))
+    Ok((
+        404,
+        Value::String(format!("Not found: {} {}", method, path)),
+    ))
 }
 
 /// Extract a query parameter from a URL path.
@@ -364,7 +369,9 @@ fn url_decode(s: &str) -> String {
                 }
             } else {
                 result.push('%');
-                if let Some(h1) = h1 { result.push(h1); }
+                if let Some(h1) = h1 {
+                    result.push(h1);
+                }
             }
         } else if c == '+' {
             result.push(' ');

@@ -6,8 +6,8 @@
 
 use crate::error::{CassetteError, Result};
 use crate::raft::{
-    create_raft_node, AppendEntriesRequest, AppendEntriesResponse, ClusterCommand,
-    NodeId, RaftRole, RequestVoteRequest, RequestVoteResponse, SharedRaftNode,
+    create_raft_node, AppendEntriesRequest, AppendEntriesResponse, ClusterCommand, NodeId,
+    RaftRole, RequestVoteRequest, RequestVoteResponse, SharedRaftNode,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -317,9 +317,7 @@ impl ClusterNode {
     /// Get the health map snapshot.
     pub fn health_snapshot(&self) -> HashMap<NodeId, HealthStatus> {
         let h = self.health.lock().unwrap();
-        h.iter()
-            .map(|(k, v)| (k.clone(), v.status))
-            .collect()
+        h.iter().map(|(k, v)| (k.clone(), v.status)).collect()
     }
 
     /// Decide whether a failover should be triggered for a failed primary.
@@ -603,13 +601,9 @@ mod tests {
     #[test]
     fn test_add_remove_node() {
         let dir = TempDir::new().unwrap();
-        let node = ClusterNode::init_cluster(
-            "c",
-            "a".to_string(),
-            "127.0.0.1:1".to_string(),
-            dir.path(),
-        )
-        .unwrap();
+        let node =
+            ClusterNode::init_cluster("c", "a".to_string(), "127.0.0.1:1".to_string(), dir.path())
+                .unwrap();
         // Force leader so add_node can succeed.
         node.raft.start_election();
         node.raft.record_vote(
@@ -637,13 +631,9 @@ mod tests {
     #[test]
     fn test_failover() {
         let dir = TempDir::new().unwrap();
-        let node = ClusterNode::init_cluster(
-            "c",
-            "a".to_string(),
-            "127.0.0.1:1".to_string(),
-            dir.path(),
-        )
-        .unwrap();
+        let node =
+            ClusterNode::init_cluster("c", "a".to_string(), "127.0.0.1:1".to_string(), dir.path())
+                .unwrap();
 
         node.raft.start_election();
         node.raft.record_vote(

@@ -55,7 +55,9 @@ impl ReplicationLog {
             let mut magic = [0u8; 4];
             file.read_exact(&mut magic)?;
             if &magic != REPL_MAGIC {
-                return Err(CassetteError::Corrupt("Invalid replication log magic".into()));
+                return Err(CassetteError::Corrupt(
+                    "Invalid replication log magic".into(),
+                ));
             }
             let mut version_bytes = [0u8; 2];
             file.read_exact(&mut version_bytes)?;
@@ -210,7 +212,8 @@ impl ChangeFeed {
         };
 
         // Notify subscribers.
-        self.subscribers.retain(|tx| tx.send(record.clone()).is_ok());
+        self.subscribers
+            .retain(|tx| tx.send(record.clone()).is_ok());
         Ok(seq)
     }
 
@@ -288,7 +291,11 @@ mod tests {
         assert_eq!(seq2, 2);
         assert_eq!(log.next_sequence(), 3);
 
-        let records: Vec<_> = log.iter_from(1).unwrap().collect::<Result<Vec<_>>>().unwrap();
+        let records: Vec<_> = log
+            .iter_from(1)
+            .unwrap()
+            .collect::<Result<Vec<_>>>()
+            .unwrap();
         assert_eq!(records.len(), 2);
         assert_eq!(records[0].sequence, 1);
         assert_eq!(records[1].sequence, 2);

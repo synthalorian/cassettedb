@@ -7,42 +7,53 @@
 //! - Full-text search with a custom inverted index.
 //! - Zero external server — embeddable library + CLI.
 
+pub mod backup;
+pub mod cluster;
+pub mod config_migration;
+pub mod crash_reporter;
+pub mod db;
+pub mod dist_tx;
+pub mod document;
+pub mod engine;
 pub mod error;
-pub mod wal;
-pub mod storage;
+pub mod feedback;
 pub mod index;
 pub mod query;
-pub mod engine;
-pub mod document;
-pub mod replication;
-pub mod backup;
-pub mod server;
 pub mod raft;
-pub mod cluster;
+pub mod replication;
+pub mod server;
 pub mod shard;
-pub mod dist_tx;
-pub mod crash_reporter;
-pub mod config_migration;
-pub mod feedback;
-pub mod db;
+pub mod storage;
+pub mod wal;
 
 #[cfg(feature = "tantivy-search")]
 pub mod search;
 
-pub use error::{CassetteError, Result};
-pub use engine::CassetteEngine;
-pub use document::Document;
-pub use query::{Query, QueryResult};
-pub use replication::{ChangeFeed, ChangeRecord, Follower, ReplicationLog};
-pub use backup::{create_snapshot, list_snapshots, restore_snapshot, delete_snapshot, SnapshotMeta};
-pub use server::{AuthManager, ConnectionPool, HttpServer, MultiDbManager, TcpServer, run_tcp_server};
-pub use raft::{create_raft_node, RaftNode, RaftRole, SharedRaftNode, LogEntry, ClusterCommand, NodeId, Term, LogIndex, PersistentState, RequestVoteRequest, RequestVoteResponse, AppendEntriesRequest, AppendEntriesResponse};
+pub use backup::{
+    create_snapshot, delete_snapshot, list_snapshots, restore_snapshot, SnapshotMeta,
+};
 pub use cluster::{ClusterConfig, ClusterManager, ClusterNode, ClusterStatus, NodeInfo, NodeRole};
-pub use shard::{ShardAllocator, ShardMap, ShardRouter, ShardId};
-pub use dist_tx::{TwoPhaseCoordinator, DistributedTransaction, DistTxLog, TxOp, TxPhase, ParticipantVote, PrepareRequest, PrepareResponse, CommitRequest, AbortRequest, LocalParticipant};
-pub use crash_reporter::{install_panic_hook, capture_crash_report};
 pub use config_migration::{ConfigMigrator, VersionedConfig, CURRENT_CONFIG_VERSION};
-pub use feedback::{submit_feedback, read_feedback, FeedbackCategory, FeedbackEntry};
+pub use crash_reporter::{capture_crash_report, install_panic_hook};
+pub use dist_tx::{
+    AbortRequest, CommitRequest, DistTxLog, DistributedTransaction, LocalParticipant,
+    ParticipantVote, PrepareRequest, PrepareResponse, TwoPhaseCoordinator, TxOp, TxPhase,
+};
+pub use document::Document;
+pub use engine::CassetteEngine;
+pub use error::{CassetteError, Result};
+pub use feedback::{read_feedback, submit_feedback, FeedbackCategory, FeedbackEntry};
+pub use query::{Query, QueryResult};
+pub use raft::{
+    create_raft_node, AppendEntriesRequest, AppendEntriesResponse, ClusterCommand, LogEntry,
+    LogIndex, NodeId, PersistentState, RaftNode, RaftRole, RequestVoteRequest, RequestVoteResponse,
+    SharedRaftNode, Term,
+};
+pub use replication::{ChangeFeed, ChangeRecord, Follower, ReplicationLog};
+pub use server::{
+    run_tcp_server, AuthManager, ConnectionPool, HttpServer, MultiDbManager, TcpServer,
+};
+pub use shard::{ShardAllocator, ShardId, ShardMap, ShardRouter};
 
 #[cfg(feature = "tantivy-search")]
-pub use search::{TantivySearch, SearchResult};
+pub use search::{SearchResult, TantivySearch};

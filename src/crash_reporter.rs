@@ -40,7 +40,11 @@ pub fn capture_crash_report(info: &std::panic::PanicHookInfo) -> String {
     report.push_str("CassetteDB Crash Report\n");
     report.push_str("========================\n\n");
     if let Some(location) = info.location() {
-        report.push_str(&format!("Location: {}:{}\n", location.file(), location.line()));
+        report.push_str(&format!(
+            "Location: {}:{}\n",
+            location.file(),
+            location.line()
+        ));
     }
     if let Some(message) = info.payload().downcast_ref::<&str>() {
         report.push_str(&format!("Message:  {}\n", message));

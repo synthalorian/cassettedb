@@ -22,32 +22,26 @@ impl TantivySearch {
     /// Open or create a Tantivy index at the given directory.
     pub fn open(index_dir: &Path) -> Result<Self> {
         let mut schema_builder = tantivy::schema::Schema::builder();
-        let doc_id_field = schema_builder.add_text_field(
-            "doc_id",
-            tantivy::schema::STRING | tantivy::schema::STORED,
-        );
-        let data_field = schema_builder.add_text_field(
-            "data",
-            tantivy::schema::TEXT | tantivy::schema::STORED,
-        );
+        let doc_id_field = schema_builder
+            .add_text_field("doc_id", tantivy::schema::STRING | tantivy::schema::STORED);
+        let data_field =
+            schema_builder.add_text_field("data", tantivy::schema::TEXT | tantivy::schema::STORED);
         let schema = schema_builder.build();
 
         let index = if index_dir.exists() && index_dir.read_dir()?.next().is_some() {
-            let dir =
-                tantivy::directory::MmapDirectory::open(index_dir).map_err(|e| {
-                    CassetteError::Index(format!("Failed to open MmapDirectory: {}", e))
-                })?;
-            tantivy::Index::open(dir).map_err(|e| {
-                CassetteError::Index(format!("Failed to open Tantivy index: {}", e))
-            })?
+            let dir = tantivy::directory::MmapDirectory::open(index_dir).map_err(|e| {
+                CassetteError::Index(format!("Failed to open MmapDirectory: {}", e))
+            })?;
+            tantivy::Index::open(dir)
+                .map_err(|e| CassetteError::Index(format!("Failed to open Tantivy index: {}", e)))?
         } else {
             std::fs::create_dir_all(index_dir)?;
             let dir = tantivy::directory::MmapDirectory::open(index_dir).map_err(|e| {
                 CassetteError::Index(format!("Failed to open MmapDirectory: {}", e))
             })?;
-            tantivy::Index::create(dir, schema.clone(), tantivy::IndexSettings::default()).map_err(|e| {
-                CassetteError::Index(format!("Failed to create Tantivy index: {}", e))
-            })?
+            tantivy::Index::create(dir, schema.clone(), tantivy::IndexSettings::default()).map_err(
+                |e| CassetteError::Index(format!("Failed to create Tantivy index: {}", e)),
+            )?
         };
 
         Ok(TantivySearch {
@@ -106,10 +100,8 @@ impl TantivySearch {
             .map_err(|e| CassetteError::Index(format!("Tantivy reader error: {}", e)))?;
         let searcher = reader.searcher();
 
-        let query_parser = tantivy::query::QueryParser::for_index(
-            &self.index,
-            vec![self.data_field],
-        );
+        let query_parser =
+            tantivy::query::QueryParser::for_index(&self.index, vec![self.data_field]);
         let query = query_parser.parse_query(query_str).map_err(|e| {
             CassetteError::InvalidQuery(format!("Tantivy query parse error: {}", e))
         })?;
@@ -135,7 +127,11 @@ impl TantivySearch {
                 .to_string();
             let data = serde_json::from_str(&data_json).unwrap_or(serde_json::Value::Null);
 
-            results.push(SearchResult { doc_id, data, score: _score });
+            results.push(SearchResult {
+                doc_id,
+                data,
+                score: _score,
+            });
         }
 
         Ok(results)
@@ -164,7 +160,8 @@ mod tests {
         let search = TantivySearch::open(&index_dir).unwrap();
 
         let doc1 = Document::new(json!({"title": "Hello world", "body": "This is a test"}));
-        let doc2 = Document::new(json!({"title": "Goodbye world", "body": "Another test document"}));
+        let doc2 =
+            Document::new(json!({"title": "Goodbye world", "body": "Another test document"}));
 
         search.index_document(&doc1).unwrap();
         search.index_document(&doc2).unwrap();
@@ -172,7 +169,10 @@ mod tests {
         // Need to give Tantivy a moment to commit (or use the same writer).
         // In tests with separate writers, this should still work due to commit.
         let results = search.search("hello", 10).unwrap();
-        assert!(!results.is_empty(), "Expected at least one result for 'hello'");
+        assert!(
+            !results.is_empty(),
+            "Expected at least one result for 'hello'"
+        );
         assert!(results.iter().any(|r| r.doc_id == doc1.id));
     }
 }

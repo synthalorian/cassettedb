@@ -8,7 +8,7 @@ use crate::error::Result;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use tokio::sync::{Semaphore, OwnedSemaphorePermit};
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 /// A pooled database connection.
 pub struct PooledConnection {
@@ -21,7 +21,9 @@ pub struct PooledConnection {
 impl PooledConnection {
     /// Access the underlying engine.
     pub fn engine(&mut self) -> &mut CassetteEngine {
-        self.engine.as_mut().expect("engine should be present in pooled connection")
+        self.engine
+            .as_mut()
+            .expect("engine should be present in pooled connection")
     }
 
     /// Get the database path.
@@ -48,14 +50,9 @@ impl DbPool {
 
     /// Acquire a connection from the pool.
     async fn acquire(&self) -> Result<PooledConnection> {
-        let permit = self
-            .semaphore
-            .clone()
-            .acquire_owned()
-            .await
-            .map_err(|_| crate::error::CassetteError::Io(
-                std::io::Error::other("semaphore closed")
-            ))?;
+        let permit = self.semaphore.clone().acquire_owned().await.map_err(|_| {
+            crate::error::CassetteError::Io(std::io::Error::other("semaphore closed"))
+        })?;
 
         // Try to reuse an existing engine.
         let engine = {
@@ -121,12 +118,13 @@ impl ConnectionPool {
 
     /// Return a connection to its pool.
     pub fn release(&self, mut conn: PooledConnection) {
-        let db_name = conn.db_path()
+        let db_name = conn
+            .db_path()
             .file_stem()
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
-        
+
         let pools = self.pools.lock().unwrap();
         if let Some(pool) = pools.get(&db_name) {
             // The permit is automatically released when conn is dropped.

@@ -22,3 +22,7 @@ bindings/go/*.out
 .claw/
 .omo/
 .clawd-todos.json
+
+# Database artifacts
+*.wal
+*.cassette

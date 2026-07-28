@@ -1,7 +1,9 @@
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId, SamplingMode, Throughput};
-use tempfile::TempDir;
+use criterion::{
+    criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode, Throughput,
+};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use tempfile::TempDir;
 
 fn make_doc(i: usize) -> serde_json::Value {
     serde_json::json!({

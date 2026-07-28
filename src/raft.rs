@@ -45,7 +45,10 @@ pub enum ClusterCommand {
     /// Update shard assignment.
     UpdateShardMap { shard_map: crate::shard::ShardMap },
     /// Begin a distributed transaction.
-    BeginDistTx { tx_id: String, participants: Vec<NodeId> },
+    BeginDistTx {
+        tx_id: String,
+        participants: Vec<NodeId>,
+    },
     /// Commit a distributed transaction.
     CommitDistTx { tx_id: String },
     /// Abort a distributed transaction.
@@ -315,11 +318,10 @@ impl RaftNode {
         }
 
         let log_ok = req.last_log_term > p.last_term()
-            || (req.last_log_term == p.last_term()
-                && req.last_log_index >= p.last_index());
+            || (req.last_log_term == p.last_term() && req.last_log_index >= p.last_index());
 
-        let vote_granted = log_ok
-            && (p.voted_for.is_none() || p.voted_for.as_ref() == Some(&req.candidate_id));
+        let vote_granted =
+            log_ok && (p.voted_for.is_none() || p.voted_for.as_ref() == Some(&req.candidate_id));
 
         if vote_granted {
             p.voted_for = Some(req.candidate_id.clone());
@@ -423,8 +425,8 @@ impl RaftNode {
             p.entry(req.prev_log_index)
         };
 
-        let log_consistent = prev_entry.map(|e| e.term).unwrap_or(req.prev_log_term)
-            == req.prev_log_term;
+        let log_consistent =
+            prev_entry.map(|e| e.term).unwrap_or(req.prev_log_term) == req.prev_log_term;
 
         if !log_consistent {
             return AppendEntriesResponse {
@@ -488,7 +490,9 @@ impl RaftNode {
             match_indices.sort_unstable_by(|a, b| b.cmp(a));
             let quorum_match = match_indices[match_indices.len() / 2];
 
-            if quorum_match > v.commit_index && p.entry(quorum_match).map(|e| e.term).unwrap_or(0) == p.current_term {
+            if quorum_match > v.commit_index
+                && p.entry(quorum_match).map(|e| e.term).unwrap_or(0) == p.current_term
+            {
                 v.commit_index = quorum_match;
             }
         }
@@ -1166,10 +1170,13 @@ mod tests {
             p.current_term = 7;
             p.voted_for = Some("b".to_string());
             p.append(3, ClusterCommand::NoOp);
-            p.append(5, ClusterCommand::AddNode {
-                node_id: "c".to_string(),
-                address: "127.0.0.1:1".to_string(),
-            });
+            p.append(
+                5,
+                ClusterCommand::AddNode {
+                    node_id: "c".to_string(),
+                    address: "127.0.0.1:1".to_string(),
+                },
+            );
         }
 
         let bytes = node.serialize_state().unwrap();
@@ -1181,10 +1188,13 @@ mod tests {
         assert_eq!(log.len(), 2);
         assert_eq!(log[0].term, 3);
         assert_eq!(log[1].term, 5);
-        assert_eq!(log[1].command, ClusterCommand::AddNode {
-            node_id: "c".to_string(),
-            address: "127.0.0.1:1".to_string(),
-        });
+        assert_eq!(
+            log[1].command,
+            ClusterCommand::AddNode {
+                node_id: "c".to_string(),
+                address: "127.0.0.1:1".to_string(),
+            }
+        );
     }
 
     // ------------------------------------------------------------------
@@ -1291,13 +1301,19 @@ mod tests {
         let node = RaftNode::new("a".to_string(), vec!["b".to_string()]);
         {
             let mut p = node.persistent.lock().unwrap();
-            p.append(1, ClusterCommand::AddNode {
-                node_id: "x".to_string(),
-                address: "1".to_string(),
-            });
-            p.append(1, ClusterCommand::RemoveNode {
-                node_id: "x".to_string(),
-            });
+            p.append(
+                1,
+                ClusterCommand::AddNode {
+                    node_id: "x".to_string(),
+                    address: "1".to_string(),
+                },
+            );
+            p.append(
+                1,
+                ClusterCommand::RemoveNode {
+                    node_id: "x".to_string(),
+                },
+            );
         }
         {
             let mut v = node.volatile.lock().unwrap();

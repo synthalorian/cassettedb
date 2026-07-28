@@ -5,9 +5,9 @@
 //! It is intentionally simple and targeted at the small cluster sizes
 //! CassetteDB is designed for.
 
-use crate::raft::NodeId;
 use crate::document::Document;
 use crate::error::{CassetteError, Result};
+use crate::raft::NodeId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -35,9 +35,19 @@ pub enum ParticipantVote {
 /// Operation type within a distributed transaction.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TxOp {
-    Insert { doc: Document, shard: String },
-    Update { id: String, data: serde_json::Value, shard: String },
-    Delete { id: String, shard: String },
+    Insert {
+        doc: Document,
+        shard: String,
+    },
+    Update {
+        id: String,
+        data: serde_json::Value,
+        shard: String,
+    },
+    Delete {
+        id: String,
+        shard: String,
+    },
 }
 
 /// A participant in a distributed transaction.
@@ -140,7 +150,10 @@ impl DistributedTransaction {
 
     /// Participant node IDs.
     pub fn participant_ids(&self) -> Vec<NodeId> {
-        self.participants.iter().map(|p| p.node_id.clone()).collect()
+        self.participants
+            .iter()
+            .map(|p| p.node_id.clone())
+            .collect()
     }
 }
 
@@ -187,7 +200,10 @@ impl DistTxLog {
 
     /// Register or replace a transaction.
     pub fn register(&self, tx: DistributedTransaction) {
-        self.transactions.lock().unwrap().insert(tx.tx_id.clone(), tx);
+        self.transactions
+            .lock()
+            .unwrap()
+            .insert(tx.tx_id.clone(), tx);
     }
 
     /// Get a transaction by ID.
@@ -244,7 +260,11 @@ impl TwoPhaseCoordinator {
     }
 
     /// Begin a new distributed transaction.
-    pub fn begin(&self, tx_id: impl Into<String>, participants: Vec<NodeId>) -> DistributedTransaction {
+    pub fn begin(
+        &self,
+        tx_id: impl Into<String>,
+        participants: Vec<NodeId>,
+    ) -> DistributedTransaction {
         let mut tx = DistributedTransaction::new(tx_id, self.node_id.clone());
         for p in participants {
             tx.add_participant(p);
@@ -387,10 +407,13 @@ mod tests {
         assert_eq!(tx.phase, TxPhase::Voting);
 
         coord
-            .add_operation("tx-1", TxOp::Insert {
-                doc: Document::new(json!({"x": 1})),
-                shard: "s0".to_string(),
-            })
+            .add_operation(
+                "tx-1",
+                TxOp::Insert {
+                    doc: Document::new(json!({"x": 1})),
+                    shard: "s0".to_string(),
+                },
+            )
             .unwrap();
 
         let responses = vec![
@@ -429,11 +452,8 @@ mod tests {
     #[test]
     fn test_local_participant() {
         let dir = TempDir::new().unwrap();
-        let mut router = crate::shard::ShardRouter::with_shards(
-            vec!["s0".to_string()],
-            dir.path(),
-        )
-        .unwrap();
+        let mut router =
+            crate::shard::ShardRouter::with_shards(vec!["s0".to_string()], dir.path()).unwrap();
         let mut participant = LocalParticipant::new("node-1".to_string(), &mut router);
         let req = PrepareRequest {
             tx_id: "tx-3".to_string(),
