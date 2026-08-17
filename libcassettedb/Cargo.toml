@@ -2,7 +2,7 @@
 name = "libcassettedb"
 version = "0.7.0"
 edition = "2021"
-authors = ["synthalorian <synth@example.com>"]
+authors = ["synth <synth@example.com>"]
 description = "C FFI bindings for CassetteDB"
 license = "MIT"
 repository = "https://github.com/synthalorian/cassettedb"
