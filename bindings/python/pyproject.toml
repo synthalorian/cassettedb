@@ -9,7 +9,7 @@ description = "Python bindings for CassetteDB, a single-file JSON document datab
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
-    { name = "synthalorian", email = "synth@example.com" }
+    { name = "synth", email = "synth@example.com" }
 ]
 keywords = ["database", "json", "document-store", "embedded", "ffi"]
 classifiers = [

@@ -5,7 +5,7 @@
   "main": "index.js",
   "types": "index.d.ts",
   "license": "MIT",
-  "author": "synthalorian <synth@example.com>",
+  "author": "synth <synth@example.com>",
   "repository": {
     "type": "git",
     "url": "https://github.com/synthalorian/cassettedb.git"

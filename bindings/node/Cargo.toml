@@ -2,7 +2,7 @@
 name = "cassettedb-node"
 version = "0.9.0"
 edition = "2021"
-authors = ["synthalorian <synth@example.com>"]
+authors = ["synth <synth@example.com>"]
 license = "MIT"
 repository = "https://github.com/synthalorian/cassettedb"
 
