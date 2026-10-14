@@ -1,6 +1,6 @@
 //! Custom inverted index for full-text search.
 //!
-//! Tokenizes text fields, builds a term -> [doc_id] map,
+//! Tokenizes text fields, builds a term -> `[doc_id]` map,
 //! and persists it as JSON in a dedicated page region (simplified here
 //! by storing in memory and serializing to the main file footer pages).
 
