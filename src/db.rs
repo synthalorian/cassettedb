@@ -447,7 +447,7 @@ impl Cassette {
             .filter(|d| !d.deleted)
             .filter(|d| match d.data.clone().path(path) {
                 Ok(results) => {
-                    !results.is_null() && results.as_array().map_or(true, |a| !a.is_empty())
+                    !results.is_null() && results.as_array().is_none_or(|a| !a.is_empty())
                 }
                 Err(_) => false,
             })
