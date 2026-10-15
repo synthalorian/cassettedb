@@ -1,3 +1,5 @@
+![cassettedb](.github/preview.png)
+
 # CassetteDB
 
 A single-file JSON document database inspired by SQLite, written in Rust.
