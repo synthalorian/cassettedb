@@ -278,6 +278,13 @@ fn bench_raft(c: &mut Criterion) {
                 vote_granted: true,
             },
         );
+        node.record_vote(
+            "c".to_string(),
+            RequestVoteResponse {
+                term: 1,
+                vote_granted: true,
+            },
+        );
         assert!(node.is_leader());
 
         b.iter(|| {

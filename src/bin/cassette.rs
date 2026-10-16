@@ -1,6 +1,8 @@
 //! CassetteDB CLI binary.
 //!
 //! Commands:
+//!
+//! ```text
 //!   init <file>                    Create a new empty database
 //!   insert <file> <json>           Insert a JSON document
 //!   query <file> <expr>            Run a query expression
@@ -28,6 +30,7 @@
 //!   dist-tx abort                  Abort a distributed transaction
 //!   migrate-config <dir>           Migrate configuration files to latest version
 //!   feedback <message>             Submit beta testing feedback
+//! ```
 
 use anyhow::Result;
 use cassettedb::document::Document;

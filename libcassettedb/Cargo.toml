@@ -8,7 +8,7 @@ license = "MIT"
 repository = "https://github.com/synthalorian/cassettedb"
 keywords = ["database", "json", "document-store", "ffi", "c-bindings"]
 categories = ["database-implementations", "external-ffi-bindings"]
-rust-version = "1.75"
+rust-version = "1.85"
 
 [lib]
 crate-type = ["cdylib", "staticlib"]
