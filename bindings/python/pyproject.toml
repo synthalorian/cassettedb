@@ -7,7 +7,7 @@ name = "cassettedb"
 version = "0.9.0"
 description = "Python bindings for CassetteDB, a single-file JSON document database"
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 authors = [
     { name = "synth", email = "synth@example.com" }
 ]
@@ -15,7 +15,7 @@ keywords = ["database", "json", "document-store", "embedded", "ffi"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",

@@ -4,7 +4,7 @@
   "description": "Node.js bindings for CassetteDB, a single-file JSON document database",
   "main": "index.js",
   "types": "index.d.ts",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "author": "synth <synth@example.com>",
   "repository": {
     "type": "git",
