@@ -320,7 +320,7 @@ Contributions are welcome! Please open an issue or pull request on GitHub.
 
 ## License
 
-MIT
+Apache-2.0, see [LICENSE](LICENSE)
 
 ---
 
