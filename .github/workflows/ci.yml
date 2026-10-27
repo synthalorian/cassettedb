@@ -129,7 +129,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@cargo-tarpaulin
       - run: cargo tarpaulin --verbose --all-features --workspace --exclude cassettedb-node --timeout 120 --out xml
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v7
         with:
           files: ./cobertura.xml
           fail_ci_if_error: false
