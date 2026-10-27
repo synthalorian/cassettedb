@@ -20,11 +20,23 @@ updates:
           - "minor"
           - "patch"
   - package-ecosystem: "cargo"
-    directories:
-      - "/"
-      - "/bindings/node"
-      - "/fuzz"
-      - "/libcassettedb"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      cargo-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+  - package-ecosystem: "cargo"
+    directory: "/fuzz"
     schedule:
       interval: "weekly"
       day: "monday"
